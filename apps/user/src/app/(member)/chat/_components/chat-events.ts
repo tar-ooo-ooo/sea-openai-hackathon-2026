@@ -1,6 +1,16 @@
 export type ApplicationAction = { type: "application_computer"; intakeId: string };
 export type ChatMessage = { role: "user" | "assistant"; content: string; action?: ApplicationAction };
 
+export function validateTriageResult(value: unknown): void {
+  if (value && typeof value === "object" && "urgency" in value && "saved" in value && "triageId" in value) {
+    if (value.urgency === "normal" && value.saved === false && value.triageId === null) return;
+    if ((value.urgency === "follow_up" || value.urgency === "emergency") && value.saved === true
+      && typeof value.triageId === "string"
+      && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.triageId)) return;
+  }
+  throw new Error("Invalid triage result");
+}
+
 // 動作是可選的附加資訊；不合法時保留文字，不產生可操作入口。
 function _readAction(value: unknown): ApplicationAction | undefined {
   if (!value || typeof value !== "object" || !("type" in value) || value.type !== "application_computer"

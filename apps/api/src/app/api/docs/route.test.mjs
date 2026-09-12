@@ -26,6 +26,7 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
     "/api/cases/{id}",
     "/api/chat/history",
     "/api/database/clear",
+    "/api/emergency-triages",
     "/api/health",
     "/api/profile",
     "/api/user-auth/login",
