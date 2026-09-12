@@ -34,10 +34,31 @@ const _openApiDocument = {
     { name: "Applications" },
   ],
   paths: {
+    "/api/admin/care-cases/{caseId}/actions": {
+      post: {
+        tags: ["Admin"], summary: "專員開始處理、記錄聯絡／追蹤或結案",
+        description: "須可信後台 Origin 與專員 cookie；限承辦人或未指派個案。首次操作認領未指派個案。開始處理僅限 new；已結案不得操作。狀態與時間線原子寫入，但不代表政府已核定申請。",
+        security: [{ adminSession: [] }],
+        parameters: [{ name: "caseId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: { required: true, content: { "application/json": { schema: {
+          type: "object", additionalProperties: false, required: ["action", "summary", "expectedStatus"], properties: {
+            action: { type: "string", enum: ["start", "note", "follow_up", "close"] },
+            summary: { type: "string", minLength: 1, maxLength: 4000 },
+            expectedStatus: { type: "string", enum: ["new", "assessing", "plan_review", "matching", "following_up", "closed"] },
+          },
+        } } } },
+        responses: {
+          "200": { description: "已儲存；不快取", content: { "application/json": { schema: { type: "object", required: ["success"], properties: { success: { const: true } } } } } },
+          "400": { description: "無效編號、JSON 或操作" }, "401": { description: "未登入專員" },
+          "403": { description: "來源不可信" }, "409": { description: "個案不存在、承辦人不符、狀態衝突或已結案" },
+          "413": { description: "超過 20000 bytes" }, "415": { description: "非 JSON" }, "503": { description: "服務暫時無法使用，請先重讀紀錄再重試" },
+        },
+      },
+    },
     "/api/admin/cases": {
       get: {
         tags: ["Admin"], summary: "專員查詢已產生的申請資料",
-        description: "不含收集中且尚無申請資料的草稿。現有資料未區分正式送出，僅供唯讀參考，不可據此接案。",
+        description: "列出民眾確認送出後產生的 application_packages，不含收集中草稿。送出時會同時建立 care_case。",
         security: [{ adminSession: [] }],
         responses: {
           "200": { description: "申請列表；Cache-Control: no-store", content: { "application/json": { schema: {
@@ -50,7 +71,7 @@ const _openApiDocument = {
     "/api/admin/cases/{caseId}": {
       get: {
         tags: ["Admin"], summary: "專員查詢完整申請內容",
-        description: "包含摘要、服務與目前完整表單（非正式送出快照）。沒有關聯表單時 intake 為 null；缺漏欄位顯示尚未提供。",
+        description: "包含摘要、服務與完整申請表單。沒有關聯表單時 intake 為 null；缺漏欄位顯示尚未提供。",
         security: [{ adminSession: [] }],
         parameters: [{ name: "caseId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: {
@@ -101,7 +122,7 @@ const _openApiDocument = {
       },
       post: {
         tags: ["Applications"], summary: "確認並送出 Agent 已收整的申請",
-        description: "以登入使用者身分合併表單資料；只有必填資料完整且 confirmed 為 true 時，才建立 application_packages 與 application_services，並將 intake 標記為 packaged。相同 intake 重試時回傳既有案件 ID。",
+        description: "以登入使用者身分合併表單資料；只有必填資料完整且 confirmed 為 true 時，才建立 application_packages、application_services 與對應 care_case，並將 intake 標記為 packaged。相同 intake 重試時回傳既有案件 ID。",
         security: [{ userSession: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         requestBody: { required: true, content: { "application/json": { schema: {
@@ -172,7 +193,7 @@ const _openApiDocument = {
     "/api/cases": {
       get: {
         tags: ["Cases"], summary: "查詢登入使用者的申請草稿與案件",
-        description: "不接受 query 參數；依 session 讀取本人資料，依 updatedAt 新至舊排序，案件服務依 position 排序。未分頁，不包含身分證、聯絡資料或完整草稿。建立案件不代表已送出申請。",
+        description: "不接受 query 參數；依 session 讀取本人資料，依 updatedAt 新至舊排序，案件服務依 position 排序。未分頁，不包含身分證、聯絡資料或完整草稿。cases 為確認送出後建立的正式申請資料。",
         security: [{ userSession: [] }],
         responses: {
           "200": { description: "查詢成功；無資料時回傳空陣列，Cache-Control: no-store", content: { "application/json": { schema: {
@@ -344,7 +365,7 @@ const _openApiDocument = {
       get: {
         tags: ["Admin"],
         summary: "查詢既有已接案個案",
-        description: "目前僅提供 GET。聊天需求轉接案已停用；正式申請接案待 application 資料來源串接後另行提供。既有個案與評估資料保留。",
+        description: "列出確認送出時建立的 care_cases。未指派個案會在專員首次操作或儲存評估時由該專員承辦。",
         security: [{ adminSession: [] }],
         responses: {
           "200": { description: "Care cases" },

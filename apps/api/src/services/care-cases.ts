@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { CareCaseStatus } from "../types/care-case.ts";
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db } from "./db/client.ts";
@@ -11,6 +12,29 @@ import {
   caseAssessments,
   caseTimelineEvents,
 } from "./db/schema.ts";
+
+export async function recordCareCaseAction(input: {
+  caseId: string; adminId: string; expectedStatus: CareCaseStatus; status: CareCaseStatus;
+  eventType: "status_changed" | "note" | "follow_up"; summary: string;
+}) {
+  const result = await db.execute(sql`
+    WITH updated AS (
+      UPDATE care_cases
+      SET status = ${input.status}::care_case_status, updated_at = now(),
+          closed_at = CASE WHEN ${input.status} = 'closed' THEN now() ELSE closed_at END,
+          assigned_admin_id = COALESCE(assigned_admin_id, ${input.adminId}::uuid)
+      WHERE id = ${input.caseId}::uuid AND status = ${input.expectedStatus}::care_case_status
+        AND status <> 'closed'
+        AND (assigned_admin_id IS NULL OR assigned_admin_id = ${input.adminId}::uuid)
+      RETURNING id
+    )
+    INSERT INTO case_timeline_events (care_case_id, event_type, source, summary, created_by_admin_id, metadata)
+    SELECT id, ${input.eventType}::case_timeline_event_type, 'admin', ${input.summary}, ${input.adminId}::uuid,
+      jsonb_build_object('previousStatus', ${input.expectedStatus}::text, 'status', ${input.status}::text)
+    FROM updated RETURNING id
+  `);
+  return result.rows.length === 1;
+}
 
 export async function listCareCases() {
   return db
@@ -60,8 +84,12 @@ export async function createCaseAssessmentWithEvent(input: {
   const result = await db.execute(sql`
     WITH updated_case AS (
       UPDATE "care_cases"
-      SET "updated_at" = now()
+      SET "updated_at" = now(),
+          "assigned_admin_id" = COALESCE("assigned_admin_id", ${input.adminId}::uuid),
+          "status" = CASE WHEN "status" = 'new' THEN 'assessing'::care_case_status ELSE "status" END
       WHERE "id" = ${input.careCaseId}
+        AND status <> 'closed'
+        AND (assigned_admin_id IS NULL OR assigned_admin_id = ${input.adminId}::uuid)
       RETURNING "id"
     ), created_assessment AS (
       INSERT INTO "case_assessments" (

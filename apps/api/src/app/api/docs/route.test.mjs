@@ -17,6 +17,7 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
   assert.deepEqual(Object.keys(document.paths).sort(), [
     "/api/admin/care-cases",
     "/api/admin/care-cases/{caseId}",
+    "/api/admin/care-cases/{caseId}/actions",
     "/api/admin/care-cases/{caseId}/assessments",
     "/api/admin/cases",
     "/api/admin/cases/{caseId}",

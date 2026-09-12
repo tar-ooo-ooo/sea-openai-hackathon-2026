@@ -1,6 +1,9 @@
 import type { CareCaseDetail, CareCaseListItem, CreateCaseAssessmentInput } from "../../types/care-case.ts";
+import type { CaseActionInput } from "../../types/care-case.ts";
+import { isAllowedCaseAction } from "./actions.ts";
 import {
   createCaseAssessmentWithEvent,
+  recordCareCaseAction,
   findCareCaseById,
   findLatestCarePlan,
   findLatestCareStateSnapshot,
@@ -10,6 +13,13 @@ import {
   listCarePlanItems,
   listOpenCareCaseActionItems,
 } from "../../services/care-cases.ts";
+
+export async function performCaseAction(caseId: string, input: CaseActionInput, adminId: string) {
+  if (!isAllowedCaseAction(input)) return false;
+  const status = input.action === "start" ? "assessing" : input.action === "close" ? "closed" : input.expectedStatus;
+  const eventType = input.action === "start" || input.action === "close" ? "status_changed" : input.action;
+  return recordCareCaseAction({ caseId, adminId, expectedStatus: input.expectedStatus, status, eventType, summary: input.summary });
+}
 
 function _toCareCaseListItem(careCase: {
   id: string;

@@ -35,9 +35,9 @@ export default async function ProtectedLayout({ children }: Readonly<{ children:
         </Link>
         <nav aria-label="主要導覽" className="main-nav">
           <Link href="/">工作首頁</Link>
-          <Link href="/cases/demo">個案</Link>
-          <Link href="/cases/demo/care-plan">照顧計畫</Link>
-          <Link href="/cases/demo/follow-up">追蹤</Link>
+          <Link href="/#application-cases-heading">申請資料</Link>
+          <Link href="/#care-cases-heading">已接案個案</Link>
+          <Link href="/#triages-heading">緊急分流</Link>
         </nav>
         <div className="manager-badge">
           <span aria-hidden="true">專</span>

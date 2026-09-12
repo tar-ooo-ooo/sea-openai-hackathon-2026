@@ -36,13 +36,12 @@ export default async function AdminCasePage({
         </div>
         <div className="case-links">
           <Link href="/">返回案件工作台</Link>
-          <Link href="/cases/demo">查看 Demo 流程</Link>
         </div>
       </section>
 
       <section className="detail-grid">
         <article className="detail-card">
-          <header><h2>申請資料摘要</h2><span className="status-tag status-referral">送出狀態待確認 · 唯讀</span></header>
+          <header><h2>申請資料摘要</h2><span className="status-tag status-referral">已送出 · 唯讀</span></header>
           <dl>
             <dt>申請資料編號</dt><dd style={{ overflowWrap: "anywhere" }}>{adminCase.id}</dd>
             <dt>需求整理時間</dt><dd>{_formatDate(adminCase.createdAt)}</dd>
@@ -52,7 +51,7 @@ export default async function AdminCasePage({
         </article>
         <article className="detail-card">
           <header><h2>申請與接案</h2></header>
-          <p className="case-detail-note">以下為資料庫目前儲存的申請內容，不是正式送出的固定快照。正式送出標記尚待串接，不能以資料建立時間、服務狀態或同意事項判定已正式送出；目前不開放接案。</p>
+          <p className="case-detail-note">民眾確認送出時已建立對應的正式案件；本頁顯示申請內容，案件後續處理請由 Case 360 進行。這不代表政府已核定資格、CMS 或服務額度。</p>
         </article>
       </section>
 

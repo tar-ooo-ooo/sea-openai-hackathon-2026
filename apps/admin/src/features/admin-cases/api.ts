@@ -51,7 +51,7 @@ export async function loadAdminCase(cookie: string, caseId: string): Promise<Adm
     }
     return result.case;
   } catch (error) {
-    if (error instanceof Error && error.message.endsWith("404")) return null;
+    if (error instanceof Error && /(?:400|404)$/.test(error.message)) return null;
     throw error;
   }
 }
