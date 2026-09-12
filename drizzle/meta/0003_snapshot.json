@@ -1,6 +1,6 @@
 {
-  "id": "64bba073-00f2-4631-a1ef-a82d938bd696",
-  "prevId": "b0d2b79e-4dcc-4f63-85d9-745a0288739a",
+  "id": "5e769381-ab2b-475f-b292-9d8b042aa195",
+  "prevId": "64bba073-00f2-4631-a1ef-a82d938bd696",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1945,6 +1945,69 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.chat_summaries": {
+      "name": "chat_summaries",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_message_id": {
+          "name": "last_message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_message_created_at": {
+          "name": "last_message_created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "chat_summaries_user_id_users_id_fk": {
+          "name": "chat_summaries_user_id_users_id_fk",
+          "tableFrom": "chat_summaries",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "chat_summaries_summary_check": {
+          "name": "chat_summaries_summary_check",
+          "value": "char_length(\"chat_summaries\".\"summary\") > 0"
+        }
+      },
       "isRLSEnabled": false
     }
   },
