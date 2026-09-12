@@ -70,11 +70,13 @@ Schema 位於 `apps/api/src/services/db/schema.ts`，migration 位於 `drizzle/`
 - 註冊／登入 body：`{ "nationalId": "...", "password": "..." }`，成功只回傳 `{ user: { id, role } }`；不回傳身分證字號或密碼雜湊。
 - 註冊固定建立 `user` 角色，專員登入流程不在本次範圍。
 
-在 `apps/api/.env.local` 加入至少 32 字元的隨機 `USER_SESSION_SECRET`，可用以下命令產生後手動填入（不要提交或分享輸出）：
+在 repo 根目錄 `.env.local` 加入至少 32 字元的隨機 `USER_SESSION_SECRET`，可用以下命令產生後手動填入（不要提交或分享輸出）：
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+
+API 的 `dev:api`、`build:api`、`start:api` 與 Drizzle 都明確載入根目錄 `.env.local`；請在 repo 根目錄執行指令，不要另外維護 `apps/api/.env.local`。user／admin 不載入後端 secrets，也不可用 `NEXT_PUBLIC_` 暴露它們。
 
 修改環境變數後重新啟動 API。未設定 secret 或無法連線資料庫時，登入／註冊安全失敗，不會假裝成功。前台使用 `fetchApi` 搭配 `credentials: "include"`，不在瀏覽器儲存帳密或 token。
 
@@ -85,6 +87,8 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 MVP 限制：沒有忘記密碼、身份真實性查驗、跨裝置登出；登出會清除目前 cookie，但已複製的簽章 token 在到期前仍有效。限流為單一 API process 共用每分鐘 30 次登入／註冊嘗試，正式服務需改為持久化、分身份限流。請勿使用真實個資或常用密碼測試。
 
 `npm test` 包含密碼雜湊、身分證檢查碼與 session 防竄改／過期測試。啟動 API 後，可執行 `AUTH_HTTP_TEST=1 npm test` 驗證 CORS、錯誤輸入、匿名 session 與登出 cookie；此測試不建立帳號或寫入資料庫。真實註冊／登入仍須在配置好資料庫及 secret 後另行驗證。
+
+確認本機 API 所連的 Neon 是測試用資料庫後，可執行 `AUTH_DATABASE_TEST=1 node --test apps/api/src/functions/user-auth/database.test.mjs`。這會建立並保留一筆隨機測試帳號，驗證註冊、拒絕重複帳號、錯誤密碼、正常登入、重讀 session 與登出 cookie，不清空或刪除既有資料。輸出僅包含測試帳號 UUID，不含帳密。此為 HTTP 整合測試，不取代瀏覽器的 cookie／重新整理操作驗證。
 
 ## 結構
 

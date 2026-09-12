@@ -252,7 +252,7 @@ AI 每次修改完成後，必須在回覆完成前執行一次自我 review：
 
 - `apps/user` 與 `apps/admin` 透過共用 `fetchApi` 呼叫 `http://localhost:3002`。
 - API 的資料庫連線只透過 `DATABASE_URL` 讀取，不得硬編碼或寫入 `AGENTS.md`。
-- secrets 只放 `apps/api/.env.local`，不得提交；Neon runtime 使用 pooled connection string。
+- 本機 secrets 統一放在 repo 根目錄 `.env.local`，不得提交；API 的 dev／build／start 指令與 Drizzle 明確載入此檔。user／admin 不載入後端 secrets，不得將其傳入 Client Components；Neon runtime 使用 pooled connection string。
 - API 若接受瀏覽器直接呼叫，開發環境只允許 `http://localhost:3000` 與 `http://localhost:3001`，production 使用明確 allowlist。
 - 新增必要環境變數時，同步更新 `.env.example`，只放安全的範例值。
 - 僅有明確允許公開的變數才能使用 `NEXT_PUBLIC_` 前綴。
