@@ -4,6 +4,18 @@
 
 建立可直接開發的 React + Next.js 基礎專案。先保持簡單；沒有明確需求時，不加入額外套件、抽象層或預留架構。
 
+## 專案參考資料
+
+```text
+專案簡報
+├── 原始版本 → https://docs.google.com/presentation/d/1qo6EXsfD5WNa5eINzB9weFFiiUw3f9_K/mobilepresent?slide=id.g3fae999c044_0_994
+└── Repo 副本 → ./docs/project-reference.pptx
+```
+
+- 規劃功能或確認產品方向前，先參考簡報中的需求與脈絡。
+- Google Slides 是原始來源；repo 內的 PPTX 方便離線查看，內容可能落後於原始版本。
+- 沒有明確要求時，不修改、重新匯出或覆蓋簡報檔。
+
 ## 技術基線
 
 - 使用 Next.js App Router、React、TypeScript。
@@ -50,6 +62,8 @@
 
 ```text
 repo/
+├── docs/
+│   └── project-reference.pptx      # Google Slides 的離線副本
 ├── drizzle/                        # Drizzle 產生的 SQL migrations
 ├── public/                         # 靜態檔案
 ├── src/
