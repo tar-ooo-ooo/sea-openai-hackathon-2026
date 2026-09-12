@@ -1,6 +1,6 @@
 # Sea × OpenAI Hackathon 2026
 
-本專案將使用者前台、後台專員介面與共用 API 分離。
+本專案將使用者前台、長照申請頁、後台專員介面與共用 API 分離。
 
 ## 架構與 ports
 
@@ -8,6 +8,7 @@
 使用者前台 apps/user             http://localhost:3000
 後台專員 apps/admin              http://localhost:3001
 共用 API apps/api                http://localhost:3002
+長照申請頁 apps/application      http://localhost:3003
                                   ↓
                              Neon PostgreSQL
 ```
@@ -23,15 +24,20 @@ npm install
 cp .env.example .env.local
 ```
 
-接著在三個 terminal 分別執行：
+接著在四個 terminal 分別執行：
 
 ```bash
 npm run dev:user
 npm run dev:admin
 npm run dev:api
+npm run dev:application
 ```
 
-所有本機環境變數集中在專案根目錄 `.env.local`。使用資料庫前，請將其中的 `DATABASE_URL` 換成 Neon pooled connection string。兩個前端透過共用 `fetchApi` 呼叫 `http://localhost:3002`。
+長照申請頁請使用 `http://localhost:3003`；開發模式不使用區網 IP，避免 Next.js 靜態資源與 HMR WebSocket 被拒絕。
+
+`apps/application` 是從既有長照申請前端搬入的獨立 Next.js App Router app，包含服務說明、申請表及案件進度頁面。目前仍以瀏覽器 `localStorage` 保存資料，尚未串接共用 API；正式串接前請勿輸入真實個資。
+
+所有本機環境變數集中在專案根目錄 `.env.local`。使用資料庫前，請將其中的 `DATABASE_URL` 換成 Neon pooled connection string。user 與 admin 透過共用 `fetchApi` 呼叫 `http://localhost:3002`；application 目前尚未串接 API。
 
 `POST /chat` 接受 `{ "message": "...", "userId": "使用者 UUID（必填）" }`，並驗證登入 cookie、使用者是否存在，以及 `userId` 是否屬於目前登入者。帶上 `Accept: application/x-ndjson` 時，透過 OpenAI Agents SDK 逐行回傳 `progress`、`result` 或 `error` 事件；未指定時維持 `{ "reply": "..." }` JSON。API 只讀寫該使用者最近 20 則 `chat_messages`；表示要申請長照時，Agent 會把資料收整到該使用者的 `application_intakes`，完整後產生 `application_packages` 與 `application_services`。使用前須在根目錄 `.env.local` 設定 server-only `OPENAI_API_KEY`。
 
@@ -109,7 +115,8 @@ MVP 限制：沒有忘記密碼、身份真實性查驗、跨裝置登出；登�
 
 - `apps/user`：使用者前台，port `3000`
 - `apps/admin`：後台專員介面，port `3001`
-- `apps/api`：兩個前端共用的 API，port `3002`
+- `apps/api`：user 與 admin 共用的 API，port `3002`
+- `apps/application`：長照服務申請頁面（Next.js App Router），port `3003`
 - `apps/api/src/services/db`：唯一的 Drizzle client 與 PostgreSQL schema
 - `drizzle`：執行 `npm run db:generate` 後產生、可提交的 migrations
 - `docs/project-reference.pptx`：黑客松規則與方向的離線參考簡報
