@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, or } from "drizzle-orm";
 import { db } from "./db/client.ts";
 import { chatMessages, chatSummaries } from "./db/schema.ts";
 
@@ -63,6 +63,17 @@ export async function saveChatSummary(
         updatedAt: new Date(),
       },
     });
+}
+
+export async function listRecentChatMessages(userId: string) {
+  const messages = await db
+    .select({ role: chatMessages.role, content: chatMessages.content })
+    .from(chatMessages)
+    .where(eq(chatMessages.userId, userId))
+    .orderBy(desc(chatMessages.createdAt))
+    .limit(20);
+
+  return messages.reverse();
 }
 
 export async function saveChatMessage(
