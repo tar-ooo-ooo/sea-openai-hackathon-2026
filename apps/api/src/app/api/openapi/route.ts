@@ -82,6 +82,27 @@ const _openApiDocument = {
         },
       },
     },
+    "/api/profile": {
+      get: {
+        tags: ["Auth"], summary: "讀取本人個人檔案", security: [{ userSession: [] }],
+        description: "不接受 query。未建立時 profile 為 null；所有回應 Cache-Control: no-store。",
+        responses: {
+          "200": { description: "本人資料或 null", content: { "application/json": { schema: { $ref: "#/components/schemas/ProfileResponse" } } } },
+          "400": { description: "不接受 query" }, "401": { description: "未登入" },
+          "403": { description: "角色或來源不允許" }, "503": { description: "資料服務不可用" },
+        },
+      },
+      put: {
+        tags: ["Auth"], summary: "儲存本人完整個人檔案", security: [{ userSession: [] }],
+        description: "使用者手動儲存；四項必填，不接受 userId 或其他欄位及 query。要求可信 Origin。依 session 建立或覆寫本人檔案；不更新案件、不授權送件，不供 Agent 自動覆寫。",
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/ProfileInput" } } } },
+        responses: {
+          "200": { description: "儲存成功；Cache-Control: no-store", content: { "application/json": { schema: { $ref: "#/components/schemas/ProfileResponse" } } } },
+          "400": { description: "欄位、日期、JSON 或 query 錯誤" }, "401": { description: "未登入" },
+          "403": { description: "角色或 Origin 不允許" }, "503": { description: "資料服務不可用" },
+        },
+      },
+    },
     "/api/cases/{id}": _detailPath("case"),
     "/api/case-drafts/{id}": _detailPath("draft"),
     "/api/cases": {
@@ -335,12 +356,32 @@ const _openApiDocument = {
           } },
         },
       },
+      ProfileInput: {
+        type: "object", additionalProperties: false, required: ["name", "birthDate", "area", "phone"],
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 100 },
+          birthDate: { type: "string", format: "date", description: "有效曆日，1900-01-01 至臺灣當日日期" },
+          area: { type: "string", minLength: 1, maxLength: 100 },
+          phone: { type: "string", minLength: 6, maxLength: 20, description: "至少六位數字，允許開頭 +、空白、括號及連字號" },
+        },
+      },
+      ProfileResponse: {
+        type: "object", required: ["profile"], properties: { profile: {
+          oneOf: [
+            { type: "null" },
+            { type: "object", required: ["name", "birthDate", "area", "phone", "updatedAt"], properties: {
+              name: { type: "string" }, birthDate: { type: "string", format: "date" },
+              area: { type: "string" }, phone: { type: "string" }, updatedAt: { type: "string", format: "date-time" },
+            } },
+          ],
+        } },
+      },
       AuthRequest: {
         type: "object",
         additionalProperties: false,
         required: ["nationalId", "password"],
         properties: {
-          nationalId: { type: "string", pattern: "^[A-Z][12][0-9]{8}$", example: "A123456789" },
+          nationalId: { type: "string", pattern: "^[A-Z][12][0-9]{8}$", example: "A123456789", description: "使用者登入與註冊在 development 僅檢查格式；其他環境另驗證加權檢查碼。" },
           password: { type: "string", format: "password", minLength: 8, maxLength: 128 },
         },
       },

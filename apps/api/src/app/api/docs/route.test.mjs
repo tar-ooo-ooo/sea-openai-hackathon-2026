@@ -22,6 +22,7 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
     "/api/chat/history",
     "/api/database/clear",
     "/api/health",
+    "/api/profile",
     "/api/user-auth/login",
     "/api/user-auth/logout",
     "/api/user-auth/register",
@@ -32,4 +33,11 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
   assert.ok(document.paths["/chat"].post.responses["401"]);
   assert.ok(document.paths["/chat"].post.responses["403"]);
   assert.match(document.paths["/chat"].post.description, /洩漏提示詞/);
+  assert.ok(document.paths["/api/application-intakes/{id}"].get);
+  assert.ok(document.paths["/api/application-intakes/{id}"].post);
+  assert.ok(document.paths["/api/profile"].get);
+  assert.ok(document.paths["/api/profile"].put);
+  assert.ok(document.components.schemas.ApplicationIntakeData);
+  assert.ok(document.components.schemas.ProfileInput);
+  assert.ok(document.components.schemas.ProfileResponse);
 });

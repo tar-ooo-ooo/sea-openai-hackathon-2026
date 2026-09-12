@@ -101,6 +101,10 @@ Schema 位於 `apps/api/src/services/db/schema.ts`，migration 位於 `drizzle/`
 
 ## 使用者端第一版
 
+使用 `npm run dev:api`（development）時，使用者註冊與登入只檢查字號格式「大寫英文＋1 或 2＋八位數字」，略過加權檢查碼，方便虛構資料測試。密碼規則、帳號唯一性與 session 驗證不變；專員登入不放寬。production、test 或未設定 NODE_ENV 仍驗證檢查碼，因此不合檢查碼的 Demo 帳號無法在正式模式登入。
+
+- 個人檔案：登入後進入 `/profile` 自動讀取本人姓名、生日、地區與電話；四項填齊後手動儲存。使用 `GET /api/profile`、`PUT /api/profile`，尚未建立時回傳 `profile: null`。不修改案件或帳密；Agent 自動補入尚未串接，限制見 [個人檔案串接說明](docs/profile-integration.md)。
+
 - `/`：公開介紹首頁。
 - `/login`：身分證字號＋密碼登入／註冊；成功後導向 `/home`。
 - `/home`、`/chat`、`/cases`：需經 API 驗證登入狀態的桌面版型。聊天已串接真實 API、處理進度及最近 20 則歷史；案件頁顯示收集中草稿、缺漏資訊、需求摘要及服務建議與狀態。

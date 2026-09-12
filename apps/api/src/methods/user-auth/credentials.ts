@@ -13,6 +13,13 @@ export function isValidPassword(value: string): boolean {
   return value.length >= 8 && value.length <= 128 && /[A-Za-z]/.test(value) && /\d/.test(value);
 }
 
+// 僅使用者端本機 Demo 放寬檢查碼；專員與其他用途維持完整驗證。
+export function isValidUserAccountId(value: string): boolean {
+  return process.env.NODE_ENV === "development"
+    ? /^[A-Z][12]\d{8}$/.test(value)
+    : isValidNationalId(value);
+}
+
 function _derive(password: string, salt: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     scrypt(password, salt, 64, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (error, key) => {

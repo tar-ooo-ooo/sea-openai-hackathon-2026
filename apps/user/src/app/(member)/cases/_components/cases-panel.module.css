@@ -35,6 +35,12 @@
 .overviewGroup dt { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
 .overviewGroup dd { margin: 0; font-size: 15px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 .unconfirmed { color: var(--muted); font-size: 14px; }
+.fieldLegend { color: var(--muted); font-size: 12px; line-height: 1.8; padding: 12px 14px; background: #f5f8f2; border-radius: 8px; }
+.overviewGroup dt { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.recordedTag, .missingTag { font-size: 11px; white-space: nowrap; border-radius: 4px; padding: 2px 6px; }
+.recordedTag { background: #eaf0e5; color: var(--green); }
+.missingTag { background: #fff0ce; color: #785419; }
+.overviewGroup dl > .missingField { border-top-style: dashed; }
 .checklist { padding-left: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 28px; font-size: 14px; line-height: 1.7; }
 .serviceReport { margin: 0; padding: 0; list-style: none; }
 .serviceReport li { border-top: 1px solid var(--line); padding: 22px 0; }

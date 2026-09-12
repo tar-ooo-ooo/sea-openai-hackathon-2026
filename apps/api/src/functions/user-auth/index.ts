@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser, getCurrentUser, userSessionCookieName } from "../../methods/user-auth";
-import { isValidNationalId, isValidPassword } from "../../methods/user-auth/credentials";
+import { isValidUserAccountId, isValidPassword } from "../../methods/user-auth/credentials";
 import { isAllowedOrigin } from "../../lib/allowed-origin";
 
 // 單一 API process 的 MVP 限流，避免無限制執行昂貴密碼雜湊。
@@ -49,7 +49,7 @@ export async function handleUserAuth(request: NextRequest, action: string) {
     if (!body || typeof body !== "object" || !("nationalId" in body) || !("password" in body)
       || typeof body.nationalId !== "string" || typeof body.password !== "string") return reply({ error: "請填寫登入資料。" }, 400);
     const nationalId = body.nationalId.trim().toUpperCase();
-    if (!isValidNationalId(nationalId) || !isValidPassword(body.password)) return reply({ error: "請檢查身分證字號與密碼格式。" }, 400);
+    if (!isValidUserAccountId(nationalId) || !isValidPassword(body.password)) return reply({ error: "請檢查身分證字號與密碼格式。" }, 400);
     const result = await authenticateUser(nationalId, body.password, action === "register");
     if (!result) return reply({ error: action === "register" ? "無法建立帳號，請嘗試登入。" : "身分證字號或密碼錯誤。" }, action === "register" ? 409 : 401);
     const response = reply({ user: result.user }, action === "register" ? 201 : 200);

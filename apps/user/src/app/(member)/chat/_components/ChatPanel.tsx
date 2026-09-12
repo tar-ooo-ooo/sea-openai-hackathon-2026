@@ -5,6 +5,7 @@ import Link from "next/link";
 import { fetchApi } from "@/lib/fetch-api";
 import { readChatStream, readHistory, shouldSendOnEnter, type ChatMessage, type ChatProgress } from "./chat-events";
 import styles from "./chat-panel.module.css";
+import ApplicationReview from "./ApplicationReview";
 
 const _suggestedPrompts = ["我想申請長照服務", "家人生活起居需要協助", "幫我整理長照申請流程"];
 
@@ -17,6 +18,7 @@ export default function ChatPanel() {
   const [progress, setProgress] = useState<ChatProgress[]>([]);
   const [reload, setReload] = useState(0);
   const [needsReload, setNeedsReload] = useState(false);
+  const [reviewCaseId, setReviewCaseId] = useState<string | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
   const sendLock = useRef(false);
   const end = useRef<HTMLDivElement>(null);
@@ -61,7 +63,7 @@ export default function ChatPanel() {
       }, "stream");
       await readChatStream(stream, (update) => {
         if (controller.signal.aborted) return;
-        if (update.type === "result") setMessages((current) => [...current, { role: "assistant", content: update.result.reply }]);
+        if (update.type === "result") setMessages((current) => [...current, { role: "assistant", content: update.result.reply, action: update.result.action }]);
         else setProgress((current) => [...current.filter((item) => item.id !== update.progress.id), update.progress]);
       });
     } catch (cause) {
@@ -86,7 +88,16 @@ export default function ChatPanel() {
     <div className={styles.messages} role="log" aria-label="聊天紀錄" aria-live="polite" aria-busy={loading}>
       <div className={styles.conversation}>
       {loading ? <p className="muted">正在載入聊天紀錄…</p> : messages.length === 0 && !needsReload ? <article className={styles.assistant} aria-label="智慧小幫手"><span className={styles.avatar} aria-hidden="true">✦</span><p className={styles.bubble}>你好！我是長照智慧小幫手。可以先說說目前遇到的照顧困難，我會協助你整理申請服務的下一步。</p></article> : null}
-      {messages.map((message, index) => <article key={index} className={message.role === "user" ? styles.user : styles.assistant} aria-label={message.role === "user" ? "你" : "智慧小幫手"}>{message.role === "assistant" && <span className={styles.avatar} aria-hidden="true">✦</span>}<p className={styles.bubble}>{message.content}</p></article>)}
+      {messages.map((message, index) => <article key={index} className={message.role === "user" ? styles.user : styles.assistant} aria-label={message.role === "user" ? "你" : "智慧小幫手"}>
+        {message.role === "assistant" && <span className={styles.avatar} aria-hidden="true">✦</span>}
+        <div className={styles.bubble}><p className={styles.messageText}>{message.content}</p>
+          {message.role === "assistant" && message.action && <div className={styles.messageActions}>
+            <button type="button" className="button secondary" onClick={() => setReviewCaseId(message.action!.caseId)}>查看申請資料</button>
+            <button type="button" className="button primary" disabled aria-describedby={`autofill-note-${index}`}>開始代填申請</button>
+            <p id={`autofill-note-${index}`}>代填功能串接中，目前不會開啟表單或送出申請。</p>
+          </div>}
+        </div>
+      </article>)}
       {sending && <div role="status" className={styles.assistant} aria-label="AI 正在整理回覆"><span className={styles.avatar} aria-hidden="true">✦</span><div className={styles.processing}><p>智慧小幫手正在協助你</p>{progress.length ? <ul>{progress.map((item) => <li key={item.id}><span aria-hidden="true">{item.status === "complete" ? "✓" : "◌"}</span>{item.label}</li>)}</ul> : <span>正在連線並準備資料…</span>}</div></div>}
       <div ref={end} />
       </div>
@@ -108,5 +119,6 @@ export default function ChatPanel() {
     <p id="chat-hint" className={styles.hint}>Enter 送出 · Shift／⌘ + Enter 換行 <span>{draft.length} / 4000 字</span></p>
     <p id="chat-privacy" className={styles.notice}>比賽測試版，請只使用虛構資料，勿輸入真實個資。申請整理不代表已送出申請。歷史顯示最近 20 則。</p>
     </div>
+    {reviewCaseId && <ApplicationReview caseId={reviewCaseId} onClose={() => setReviewCaseId(null)} />}
   </section>;
 }
