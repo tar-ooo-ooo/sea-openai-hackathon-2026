@@ -6,7 +6,9 @@ import { runChatAgent, summarizeChatHistory } from "./chat-agent.ts";
 
 test("Chat Agent 同時取得摘要與近期訊息", async (context) => {
   let input = "";
-  context.mock.method(Runner.prototype, "run", async (_agent, nextInput) => {
+  let instructions = "";
+  context.mock.method(Runner.prototype, "run", async (agent, nextInput) => {
+    instructions = agent.instructions;
     input = nextInput;
     return { finalOutput: "完成" };
   });
@@ -20,6 +22,8 @@ test("Chat Agent 同時取得摘要與近期訊息", async (context) => {
 
   assert.match(input, /對話摘要：\n較舊對話摘要/);
   assert.match(input, /對話前文：\n使用者：近期訊息/);
+  assert.match(instructions, /長期照顧服務法：https:\/\/1966\.gov\.tw/);
+  assert.match(instructions, /只有使用者明確詢問資料來源時/);
 });
 
 test("摘要 Agent 合併既有摘要與較舊訊息", async (context) => {
@@ -40,8 +44,10 @@ test("摘要 Agent 合併既有摘要與較舊訊息", async (context) => {
 
 test("申請 Agent 提供收整與產生禮包兩個 tools", async (context) => {
   let toolNames = [];
+  let instructions = "";
   context.mock.method(Runner.prototype, "run", async (agent) => {
     toolNames = agent.tools.map((item) => item.name);
+    instructions = agent.instructions;
     return { finalOutput: "完成" };
   });
 
@@ -67,6 +73,7 @@ test("申請 Agent 提供收整與產生禮包兩個 tools", async (context) => 
     "collect_application_intake",
     "generate_application_package",
   ]);
+  assert.match(instructions, /申請長照服務：https:\/\/1966\.gov\.tw/);
 });
 
 test("修改既有禮包時只提供更新 tool", async (context) => {

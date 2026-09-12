@@ -43,6 +43,8 @@ npm run dev:application
 
 `GET /api/chat/history` 依登入 cookie 回傳 `{ messages: [{ role, content }] }`，最多 20 則、由舊至新，不接受指定他人的 userId 且不快取。聊天頁重新整理會重讀紀錄。串流錯誤不會自動重送，需先重讀紀錄確認後端是否已保存；目前不提供完整歷史分頁、互動卡或 token 逐字串流。Agent 尚未做個資遮罩，Demo 僅能使用虛構資料。
 
+長照制度相關回答以衛生福利部長照專區（1966）的「長期照顧服務法」、「長期照顧服務申請及給付辦法」與「申請長照服務」頁面作為官方參考；一般回答不主動列出網址，使用者明確詢問來源時才提供最相關的官方連結。資格、額度、補助與實際服務仍以各縣市長期照顧管理中心最新評估及核定為準。
+
 啟動 API 後可開啟 Swagger UI：`http://localhost:3002/api/docs`；OpenAPI JSON 位於 `http://localhost:3002/api/openapi`。
 
 `GET /api/cases` 使用登入 cookie 查詢本人的案件，回傳 `{ drafts, cases }`，不接受 query 參數。`drafts` 包含收集中草稿的 `id`、`status`、`targetName`、`jurisdiction`、`summary`、`missingFields`、`updatedAt`；`cases` 包含案件的 `id`、`targetName`、`summary`、`createdAt`、`updatedAt` 與 `services`（`id`、`position`、`category`、`name`、`reason`、`status`）。兩者依更新時間新至舊排列，服務依 position 排序。未分頁、不快取，也不回傳完整草稿或身分證／聯絡資料欄位；無資料回傳空陣列。401 表示未登入，400 表示有不支援的 query，503 表示驗證或資料讀取失敗。「我的案件」畫面已串接此 API，進入頁面或按「更新案件」會重讀資料；支援載入、無資料、逾時、登入失效及錯誤重試。草稿可連回聊天補充資訊，但尚不支援指定草稿續辦、直接編輯或送出申請。
