@@ -98,7 +98,7 @@ npm run db:migrate
 | `application_packages` | 每位使用者、每個照顧對象的申請案件與需求摘要 |
 | `application_services` | 案件內有順序的服務建議、原因及申請狀態 |
 | `application_intakes` | Agent 收整中的長照申請草稿；完整後連到產生的長照服務方案 |
-| `emergency_triages` | `follow_up`／`emergency` 分流事件與時間，不保存原始健康描述 |
+| `emergency_triages` | `follow_up`／`emergency` 分流事件、時間與原始訊息 `message`（既有紀錄可為空） |
 
 Schema 位於 `apps/api/src/services/db/schema.ts`，migration 位於 `drizzle/`。確認 SQL 後以 `npm run db:migrate` 套用。
 

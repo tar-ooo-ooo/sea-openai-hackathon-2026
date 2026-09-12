@@ -437,6 +437,7 @@ export const emergencyTriages = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     urgency: triageUrgency("urgency").notNull(),
+    message: text("message"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
