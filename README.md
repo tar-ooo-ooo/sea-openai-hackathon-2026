@@ -35,6 +35,16 @@ npm run dev:api
 
 `POST /chat` 接受 `{ "message": "...", "userId": "使用者 UUID（選填）" }`。帶上 `Accept: application/x-ndjson` 時，透過 OpenAI Agents SDK 逐行回傳 `progress`、`result` 或 `error` 事件；未指定時維持 `{ "reply": "..." }` JSON。登入使用者帶入 `userId` 時，API 只讀寫該使用者最近 20 則 `chat_messages`；表示要申請長照時，Agent 會把資料收整到該使用者的 `application_intakes`，完整後產生 `application_packages` 與 `application_services`。使用前須在根目錄 `.env.local` 設定 server-only `OPENAI_API_KEY`。
 
+### Agent function tools
+
+目前只有申請資料收整 Agent 配置 function tool；一般問答 Agent 沒有 tools。
+
+| Tool | 觸發時機 | 用途與結果 |
+| --- | --- | --- |
+| `collect_application_intake` | 帶有有效 `userId`，且使用者表示要申請長照或已有收整中的草稿 | 將使用者明確提供的欄位合併到該 user 的 `application_intakes.data`。資料未齊時回傳 `collecting` 與缺少欄位；必填資料、同意與至少一項服務齊全後回傳 `packaged`，並建立 `application_packages` 與 `application_services`。 |
+
+讀取最近 20 則對話、保存 user／assistant 訊息及依 `userId` 查詢草稿是 API method/service 的固定流程，不是交由 Agent 自行決定是否呼叫的 function tool。
+
 清空所有 `public` 資料表資料時，呼叫 `POST /api/database/clear`。此 API 保留資料表與 Drizzle migration 紀錄。
 
 ## 指令
