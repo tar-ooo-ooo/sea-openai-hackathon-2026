@@ -8,7 +8,7 @@ export async function listRecentChatMessages(userId: string) {
     .from(chatMessages)
     .where(eq(chatMessages.userId, userId))
     .orderBy(desc(chatMessages.createdAt))
-    .limit(20);
+    .limit(100);
 
   return messages.reverse();
 }

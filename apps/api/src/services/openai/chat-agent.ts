@@ -11,7 +11,7 @@ const _chatAgent = new Agent({
   instructions: "你是長照服務助手。請使用繁體中文，提供簡潔且清楚的協助。",
   model: "gpt-5.6-luna",
   modelSettings: {
-    maxTokens: 1000,
+    maxTokens: 4096,
     reasoning: { effort: "none" },
     store: false,
   },
@@ -108,7 +108,7 @@ export async function runChatAgent(
             : `你要協助使用者完成長照申請資料收整。根據目前草稿、missingFields 順序、對話前文與最新訊息，只把使用者明確提供的資料傳給 collect_application_intake，不可猜測。collect_application_intake 回傳 collecting 時，簡短確認後只詢問 missingFields 的第一個欄位；回傳 ready 時，立即呼叫 generate_application_package。若本回合開始時 missingFields 已是空陣列，直接呼叫 generate_application_package。每個工具每回合最多呼叫一次。optionalFields 可收整但不阻擋方案產生。generate_application_package 只可在必填資料完整時呼叫；回傳 collecting 時只詢問第一個缺少欄位，回傳 packaged 時告知長照服務方案已建立。欲申請服務只能選：${applicationServiceOptions.join("、")}。`,
         model: "gpt-5.6-luna",
         modelSettings: {
-          maxTokens: 1000,
+          maxTokens: 4096,
           reasoning: { effort: "none" },
           store: false,
         },
