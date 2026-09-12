@@ -37,7 +37,7 @@ npm run dev:application
 
 `apps/application` 是獨立 Next.js App Router app，包含服務說明、申請表及案件進度頁面。已支援以民眾 session 透過 `GET /api/application-intakes/{id}` 讀取既有草稿，確認表單後以 POST 建立案件；本機表單與部分案件畫面仍使用 `localStorage`，尚非完整的伺服器案件管理流程。Demo 請使用虛構資料。
 
-後台工作台透過 `GET /api/admin/triages` 顯示 `emergency_triages`，緊急優先、同程度依時間新至舊，並連結目前的使用者姓名、電話與地區；僅專員可讀、不快取。此表目前沒有症狀、處理狀態或被照顧者／申請關聯，不會自動配對申請。正式送出的申請則由 `application_packages` 與對應的 `care_cases` 提供給後台處理。
+後台工作台透過 `GET /api/admin/triages` 顯示 `emergency_triages` 的分流程度、原始訊息，並連結目前的使用者姓名、電話與地區；緊急優先、同程度依時間新至舊，僅專員可讀且不快取。既有資料若未保存原始訊息會明確標示；此表目前沒有處理狀態或被照顧者／申請關聯，不會自動配對申請。正式送出的申請則由 `application_packages` 與對應的 `care_cases` 提供給後台處理。
 
 後台首頁「申請資料列表」透過 `GET /api/admin/cases` 顯示已產生的 `application_packages`，不含尚未產生申請資料的收集中草稿。點選「查看完整明細」進入 `/cases/{caseId}`，透過專員 API 讀取摘要、服務需求及同一使用者的關聯 `application_intakes.data`（申請人、被照顧者、照顧狀況、補充資料、資格預檢及同意事項）。沒有關聯表單時明確提示；缺漏欄位顯示「尚未提供」。API 僅專員可讀，回應不快取。
 
@@ -100,9 +100,23 @@ npm run db:migrate
 | `application_packages` | 每位使用者、每個照顧對象的申請案件與需求摘要 |
 | `application_services` | 案件內有順序的服務建議、原因及申請狀態 |
 | `application_intakes` | Agent 收整中的長照申請草稿；完整後連到產生的長照服務方案 |
-| `emergency_triages` | `follow_up`／`emergency` 分流事件與時間，不保存原始健康描述 |
+| `emergency_triages` | `follow_up`／`emergency` 分流事件、時間、原始訊息 `message` 與事件當下姓名 `user_name`（既有紀錄可為空） |
 
 Schema 位於 `apps/api/src/services/db/schema.ts`，migration 位於 `drizzle/`。確認 SQL 後以 `npm run db:migrate` 套用。
+
+### 危急訊息分流 API
+
+`POST /api/emergency-triages` 接收 `{ "message": "我休克了" }`，需可信 `Origin` 與 `care_user_session` cookie；前台使用 `fetchApi` 呼叫。只接受非空白、最多 4000 字的原始訊息，不接受 `userId` 或客戶端指定分級。
+
+- `normal`：回傳 `{ urgency: "normal", saved: false, triageId: null }`，不寫入。
+- `follow_up`／`emergency`：將 session 使用者 ID、原始 `message` 與 `urgency` 寫入 `emergency_triages`，同一 SQL 從該使用者的 `profiles.name` 保存姓名快照 `user_name`（無 profile 為 null），回傳 `{ urgency, saved: true, triageId }`。姓名不傳給模型；歷史事件不隨 profile 改名，也不回填無法確認的舊姓名。
+- 驗證失敗回傳 400／401／403；模型逾時、拒答、格式錯誤或儲存失敗回傳 503，不可視為沒有風險。寫入失敗可能結果未知；目前無重試去重，呼叫端不要自動重送。
+
+沿用現有 `OPENAI_API_KEY` 與模型，只傳此則訊息、不附 profile 或帳號，停用 SDK tracing 並設定 `store: false`（不代表供應商所有資料保留皆關閉）。原始訊息仍可能包含個資；使用此功能前須取得適當同意。聊天頁每次有效送出訊息時，會並行呼叫此 API，不等待分流完成才顯示聊天回覆；不重送歷史紀錄、不依賴聊天回覆是否成功。分流使用獨立 35 秒前端逾時，不因聊天結束取消；失敗或回應格式無效時顯示獨立警示，不鎖住聊天，也不因下一次成功而掩蓋先前失敗。沒有自動重試或救護通知；關閉頁面仍可能中斷請求，此方式不是可靠背景佇列。
+
+分類採結構化輸出，參考 [OpenAI 文件](https://developers.openai.com/api/docs/guides/structured-outputs)；危急例示參考 [救護服務警訊](https://www.londonambulance.nhs.uk/our-services/emergency-care/calling-999/) 與 [中風警訊](https://www.nhs.uk/conditions/stroke/symptoms/)。這是未經臨床驗證的輔助分流，不是醫療診斷或救護通報；只看單則訊息可能誤判或漏判，不能作為唯一緊急判斷機制。`follow_up` 是產品追蹤分類，不是官方醫療分級。
+
+離線回歸：`node --test apps/api/src/functions/emergency-triages/index.test.mjs apps/api/src/methods/emergency-triages/index.test.mjs apps/api/src/services/openai/emergency-triage.test.mjs`。模型語意測試需自行明確啟用：`TRIAGE_LIVE_TEST=1 node --import ./scripts/load-env.mjs --test apps/api/src/services/openai/emergency-triage.test.mjs`，會使用虛構訊息呼叫付費 API，但不寫入資料庫。
 
 合併後的 migration 順序為 `0002_vengeful_reavers`（後台個案）→ `0003_happy_sheva_callister`（聊天摘要，原 main 的 `0002_happy_sheva_callister`）。兩份 SQL 內容與原始時間戳保留，snapshot 已合併成連續歷史。本次 Git 合併沒有執行 migration；若目標資料庫曾只套用聊天摘要、未套用後台個案，須先核對 migration 紀錄與實際資料表，不能直接假設 `db:migrate` 會補齊較早的變更。
 

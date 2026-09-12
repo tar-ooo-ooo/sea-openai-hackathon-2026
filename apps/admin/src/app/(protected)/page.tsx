@@ -75,7 +75,8 @@ export default async function Home() {
                   <div className="item-meta"><span className="status-tag">{triage.urgency === "emergency" ? "緊急" : "需追蹤"}</span><time dateTime={triage.createdAt}>{_formatDate(triage.createdAt)}</time></div>
                   <h3>{triage.name ?? "使用者尚未填寫姓名"}</h3>
                   <p>聯絡電話：{triage.phone || "尚未提供"} · 地區：{triage.area || "尚未提供"}</p>
-                  <details><summary>查看紀錄資訊</summary><dl><dt>分流編號</dt><dd>{triage.id}</dd><dt>使用者編號</dt><dd>{triage.userId}</dd><dt>事件描述</dt><dd>目前資料來源尚未提供</dd></dl></details>
+                  <blockquote className="triage-message"><strong>原始訊息</strong><span>{triage.message ?? "此筆既有紀錄未保存原始訊息"}</span></blockquote>
+                  <details><summary>查看紀錄資訊</summary><dl><dt>分流編號</dt><dd>{triage.id}</dd><dt>使用者編號</dt><dd>{triage.userId}</dd></dl></details>
                 </div>
               </article>
             ))}</div>}

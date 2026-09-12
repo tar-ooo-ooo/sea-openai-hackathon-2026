@@ -5,6 +5,7 @@ process.env.DATABASE_URL ??= "postgresql://test:test@localhost/test";
 
 const {
   handleGetApplicationIntake,
+  handleOpenApplicationComputer,
   handleSubmitApplicationIntake,
 } = await import("./index.ts");
 
@@ -107,4 +108,33 @@ test("送出 API 拒絕未登入、未確認與無效 JSON", async () => {
     _user,
     noSubmit,
   )).status, 400);
+});
+
+test("Computer Tool 只替本人草稿開啟申請頁並沿用 session", async () => {
+  const request = new Request(`http://localhost/api/application-intakes/${_id}/computer`, {
+    method: "POST",
+    headers: { Cookie: "care_user_session=test-token" },
+  });
+  const calls = [];
+  const response = await handleOpenApplicationComputer(
+    request,
+    _id,
+    _user,
+    async (owner, id) => owner === "owner-a" && id === _id ? { id, status: "collecting" } : null,
+    async (url, token) => calls.push({ url, token }),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { opened: true });
+  assert.deepEqual(calls, [{ url: `http://localhost:3003/apply/${_id}`, token: "test-token" }]);
+
+  const missing = await handleOpenApplicationComputer(request, _id, _user, async () => null, async () => assert.fail("不得啟動"));
+  assert.equal(missing.status, 404);
+  const submitted = await handleOpenApplicationComputer(
+    request,
+    _id,
+    _user,
+    async () => ({ id: _id, status: "packaged" }),
+    async () => assert.fail("不得啟動"),
+  );
+  assert.equal(submitted.status, 409);
 });

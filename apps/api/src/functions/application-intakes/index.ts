@@ -2,10 +2,12 @@ import { NextRequest } from "next/server.js";
 import { z } from "zod";
 import { getCurrentUser } from "../../methods/user-auth/index.ts";
 import {
+  getApplicationIntakeForComputer,
   getApplicationIntakeForReview,
   submitApplicationIntake,
 } from "../../methods/application-intakes/collect-application-intake.ts";
 import { applicationIntakeDataSchema } from "../../types/application-intake.ts";
+import { openApplicationWithComputer } from "../../services/openai/application-computer.ts";
 
 const _uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const _submissionSchema = z.object({
@@ -82,5 +84,36 @@ export async function handleSubmitApplicationIntake(
     return Response.json({ applicationPackageId: result.applicationPackageId }, { headers });
   } catch {
     return Response.json({ error: "暫時無法送出申請，請稍後重試。" }, { status: 503, headers });
+  }
+}
+
+export async function handleOpenApplicationComputer(
+  request: Request,
+  id: string,
+  getUser = getCurrentUser,
+  get = getApplicationIntakeForComputer,
+  open = openApplicationWithComputer,
+) {
+  const headers = { "Cache-Control": "no-store" };
+  try {
+    const token = new NextRequest(request.url, { headers: request.headers }).cookies.get("care_user_session")?.value;
+    const user = await getUser(token);
+    if (!user || !token) return Response.json({ error: "請先登入。" }, { status: 401, headers });
+    if (user.role !== "user") return Response.json({ error: "無法存取使用者申請。" }, { status: 403, headers });
+    if (!_uuidPattern.test(id) || new URL(request.url).search) {
+      return Response.json({ error: "無效的查詢參數。" }, { status: 400, headers });
+    }
+    const intakeId = id.toLowerCase();
+    const intake = await get(user.id, intakeId);
+    if (!intake) {
+      return Response.json({ error: "找不到此申請草稿。" }, { status: 404, headers });
+    }
+    if (intake.status !== "collecting") {
+      return Response.json({ error: "這份申請已建立正式案件，不能再次啟動代填。" }, { status: 409, headers });
+    }
+    await open(`http://localhost:3003/apply/${intakeId}`, token);
+    return Response.json({ opened: true }, { headers });
+  } catch {
+    return Response.json({ error: "暫時無法啟動申請操作視窗，請稍後重試。" }, { status: 503, headers });
   }
 }

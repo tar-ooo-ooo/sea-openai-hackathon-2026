@@ -99,6 +99,32 @@ const _openApiDocument = {
         },
       },
     },
+    "/api/emergency-triages": {
+      post: {
+        tags: ["Chat"], summary: "語意分流並保存需追蹤或危急事件",
+        description: "聊天頁送出訊息時並行呼叫此端點，不阻擋聊天回覆。需可信 Origin 與本人 session，不接受 query。只將 message 傳給 OpenAI，不附 profile；一般訊息不寫入。不是醫療診斷或救護通報。每次成功提交可新增一筆，沒有重試去重；503 不代表無風險，亦可能是寫入結果未知，不可盲目重送。",
+        security: [{ userSession: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: {
+          type: "object", additionalProperties: false, required: ["message"],
+          properties: { message: { type: "string", minLength: 1, maxLength: 4000, pattern: "\\S", description: "非空白原始訊息，保留前後空白" } },
+        } } } },
+        responses: {
+          "200": { description: "分類完成；Cache-Control: no-store", content: { "application/json": { schema: {
+            oneOf: [
+              { type: "object", required: ["urgency", "saved", "triageId"], properties: {
+                urgency: { const: "normal" }, saved: { const: false }, triageId: { type: "null" },
+              } },
+              { type: "object", required: ["urgency", "saved", "triageId"], properties: {
+                urgency: { type: "string", enum: ["follow_up", "emergency"] }, saved: { const: true }, triageId: { type: "string", format: "uuid" },
+              } },
+            ],
+          } } } },
+          "400": { description: "JSON、message 或 query 無效" },
+          "401": { description: "未登入" }, "403": { description: "角色或來源不允許" },
+          "503": { description: "身分驗證、模型分類或資料庫儲存失敗；不回傳 normal" },
+        },
+      },
+    },
     "/api/application-intakes/{id}": {
       get: {
         tags: ["Applications"], summary: "讀取 Agent 已收整的申請草稿",
@@ -148,6 +174,26 @@ const _openApiDocument = {
         },
       },
     },
+    "/api/application-intakes/{id}/computer": {
+      post: {
+        tags: ["Applications"],
+        summary: "以 Computer Tool 開啟申請操作視窗",
+        description: "只限本人尚未送出的申請草稿。API 以目前登入 session 在本機 Chrome 開啟申請頁，Agent 只確認頁面成功載入；同意、確認與送出仍須由使用者親自操作。",
+        security: [{ userSession: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": { description: "操作視窗已開啟", content: { "application/json": { schema: {
+            type: "object", required: ["opened"], properties: { opened: { type: "boolean", const: true } },
+          } } } },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "404": { description: "找不到本人尚未送出的草稿" },
+          "409": { description: "申請已建立正式案件，不能再次啟動代填" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
     "/api/profile": {
       get: {
         tags: ["Auth"], summary: "讀取本人個人檔案", security: [{ userSession: [] }],
@@ -172,14 +218,15 @@ const _openApiDocument = {
     "/api/admin/triages": {
       get: {
         tags: ["Admin"], summary: "專員查詢緊急與追蹤分流紀錄",
-        description: "僅限專員。緊急優先，同程度依建立時間新至舊。聯絡資料來自使用者目前的 profile，非被照顧者或事件快照。沒有處理狀態、症狀或申請關聯。",
+        description: "僅限專員。緊急優先，同程度依建立時間新至舊。回傳分流當下保存的原始訊息；舊資料可能為 null。聯絡資料來自使用者目前的 profile，非被照顧者或事件快照。沒有處理狀態或申請關聯。",
         security: [{ adminSession: [] }],
         responses: {
           "200": { description: "成功；Cache-Control: no-store；無資料回傳空陣列", content: { "application/json": { schema: {
             type: "object", required: ["triages"], properties: { triages: { type: "array", items: {
-              type: "object", required: ["id", "userId", "urgency", "createdAt", "name", "phone", "area"], properties: {
+              type: "object", required: ["id", "userId", "urgency", "message", "createdAt", "name", "phone", "area"], properties: {
                 id: { type: "string", format: "uuid" }, userId: { type: "string", format: "uuid" },
                 urgency: { type: "string", enum: ["emergency", "follow_up"] }, createdAt: { type: "string", format: "date-time" },
+                message: { type: ["string", "null"], description: "分流當下的原始訊息；舊資料可能未保存" },
                 name: { type: ["string", "null"] }, phone: { type: ["string", "null"] }, area: { type: ["string", "null"] },
               },
             } } },

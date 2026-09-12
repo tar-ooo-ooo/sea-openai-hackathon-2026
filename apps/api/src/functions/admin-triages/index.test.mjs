@@ -16,7 +16,7 @@ test("分流查詢先驗證專員，拒絕時不可讀取資料", async () => {
 test("分流查詢不快取，保留無個人檔案紀錄，不洩露資料庫錯誤", async () => {
   const request = new NextRequest("http://localhost:3002/api/admin/triages");
   const authenticate = async () => ({ admin: { id: "admin", role: "admin" } });
-  const triage = { id: "triage", userId: "user", urgency: "emergency", createdAt: "2026-09-12T00:00:00Z", name: null, phone: null, area: null };
+  const triage = { id: "triage", userId: "user", urgency: "emergency", message: "阿公現在叫不醒", createdAt: "2026-09-12T00:00:00Z", name: null, phone: null, area: null };
   const result = await handleAdminTriages(request, authenticate, async () => [triage]);
   assert.equal(result.status, 200);
   assert.equal(result.headers.get("cache-control"), "no-store");

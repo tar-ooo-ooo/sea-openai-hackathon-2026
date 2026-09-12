@@ -1,13 +1,24 @@
-export type ApplicationAction = { type: "application_review"; caseId: string };
+export type ApplicationAction = { type: "application_computer"; intakeId: string };
 export type ChatMessage = { role: "user" | "assistant"; content: string; action?: ApplicationAction };
+
+export function validateTriageResult(value: unknown): void {
+  if (value && typeof value === "object" && "urgency" in value && "saved" in value && "triageId" in value) {
+    if (value.urgency === "normal" && value.saved === false && value.triageId === null) return;
+    if ((value.urgency === "follow_up" || value.urgency === "emergency") && value.saved === true
+      && typeof value.triageId === "string"
+      && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.triageId)) return;
+  }
+  throw new Error("Invalid triage result");
+}
 
 // 動作是可選的附加資訊；不合法時保留文字，不產生可操作入口。
 function _readAction(value: unknown): ApplicationAction | undefined {
-  if (!value || typeof value !== "object" || !("type" in value) || value.type !== "application_review"
-    || !("caseId" in value) || typeof value.caseId !== "string"
-    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.caseId)) return undefined;
-  return { type: "application_review", caseId: value.caseId.toLowerCase() };
+  if (!value || typeof value !== "object" || !("type" in value) || value.type !== "application_computer"
+    || !("intakeId" in value) || typeof value.intakeId !== "string"
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.intakeId)) return undefined;
+  return { type: "application_computer", intakeId: value.intakeId.toLowerCase() };
 }
+
 export function shouldSendOnEnter(event: Pick<KeyboardEvent, "key" | "shiftKey" | "metaKey" | "isComposing" | "keyCode">): boolean {
   return event.key === "Enter" && !event.shiftKey && !event.metaKey && !event.isComposing && event.keyCode !== 229;
 }
@@ -23,6 +34,13 @@ export function normalizeAssistantContent(content: string) {
     .replace(/\*\*((?:資料)?已收整完成。)\*\*/g, "$1");
 }
 
+function _normalizeApplicationLink(content: string, action?: ApplicationAction) {
+  return action ? content : content.replace(
+    /\[檢視並送出申請\]\(http:\/\/localhost:3003\/apply\/[0-9a-f-]+\)(?:\s*正式案件會在您檢視並確認表單後建立。)?/gi,
+    "這份申請已完成或已無法編輯，請到[我的案件](/cases)查看。",
+  );
+}
+
 export function readHistory(value: unknown): ChatMessage[] {
   if (!value || typeof value !== "object" || !("messages" in value) || !Array.isArray(value.messages)) {
     throw new Error("Invalid history");
@@ -35,7 +53,9 @@ export function readHistory(value: unknown): ChatMessage[] {
     const action = message.role === "assistant" && "action" in message ? _readAction(message.action) : undefined;
     return {
       role: message.role,
-      content: message.role === "assistant" ? normalizeAssistantContent(message.content) : message.content,
+      content: message.role === "assistant"
+        ? _normalizeApplicationLink(normalizeAssistantContent(message.content), action)
+        : message.content,
       ...(action ? { action } : {}),
     };
   });
@@ -56,7 +76,13 @@ export async function readChatStream(stream: ReadableStream<Uint8Array>, onEvent
       && "reply" in event.result && typeof event.result.reply === "string" && event.result.reply.trim()) {
       completed = true;
       const action = "action" in event.result ? _readAction(event.result.action) : undefined;
-      onEvent({ type: "result", result: { reply: normalizeAssistantContent(event.result.reply), ...(action ? { action } : {}) } });
+      onEvent({
+        type: "result",
+        result: {
+          reply: _normalizeApplicationLink(normalizeAssistantContent(event.result.reply), action),
+          ...(action ? { action } : {}),
+        },
+      });
       return;
     }
     if (event.type === "progress" && "progress" in event && event.progress && typeof event.progress === "object") {
