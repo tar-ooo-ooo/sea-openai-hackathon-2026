@@ -1,11 +1,10 @@
-import type { NextRequest } from "next/server";
 import { sendMessage } from "../../methods/chat/send-message.ts";
-import { getCurrentUser, userSessionCookieName } from "../../methods/user-auth/index.ts";
+import { getChatUser } from "./chat-session.ts";
 
 const _streamContentType = "application/x-ndjson";
 const _serviceUnavailableMessage = "AI service is temporarily unavailable";
 
-type ChatInput = { message: string; userId: string };
+type ChatInput = { message: string; userId?: string };
 
 async function _readInput(request: Request): Promise<ChatInput | null> {
   try {
@@ -19,10 +18,9 @@ async function _readInput(request: Request): Promise<ChatInput | null> {
 
     if (typeof message !== "string") return null;
     if (
-      typeof userId !== "string" ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        userId,
-      )
+      userId !== undefined &&
+      (typeof userId !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId))
     ) {
       return null;
     }
@@ -37,7 +35,7 @@ async function _readInput(request: Request): Promise<ChatInput | null> {
   }
 }
 
-function _streamChat(input: ChatInput, send: typeof sendMessage): Response {
+function _streamChat(input: ChatInput & { userId: string }, send: typeof sendMessage): Response {
   const encoder = new TextEncoder();
   let isCancelled = false;
 
@@ -76,28 +74,26 @@ function _streamChat(input: ChatInput, send: typeof sendMessage): Response {
 }
 
 export async function handleChat(
-  request: NextRequest,
+  request: Request,
   send: typeof sendMessage = sendMessage,
-  getUser: typeof getCurrentUser = getCurrentUser,
+  getUser: typeof getChatUser = getChatUser,
 ): Promise<Response> {
+  let user;
+  try { user = await getUser(request); }
+  catch { return Response.json({ error: "Unable to verify session" }, { status: 503 }); }
+  if (!user) return Response.json({ error: "Please sign in" }, { status: 401 });
   const input = await _readInput(request);
 
   if (!input) {
     return Response.json(
-      { error: "message must contain 1 to 4000 characters and userId is required and must be a UUID" },
+      { error: "message must contain 1 to 4000 characters; userId must be a UUID if provided" },
       { status: 400 },
     );
   }
 
-  let user;
-  try {
-    user = await getUser(request.cookies.get(userSessionCookieName)?.value);
-  } catch {
-    return Response.json({ error: _serviceUnavailableMessage }, { status: 502 });
-  }
-  if (!user) return Response.json({ error: "Authentication required" }, { status: 401 });
-  if (user.id !== input.userId) {
-    return Response.json({ error: "userId does not match the authenticated user" }, { status: 403 });
+  // 相容舊 client，但絕不允許指定其他人的資料。
+  if (input.userId && input.userId !== user.id) {
+    return Response.json({ error: "User does not match session" }, { status: 403 });
   }
 
   if (!process.env.OPENAI_API_KEY) {
@@ -105,11 +101,11 @@ export async function handleChat(
   }
 
   if (request.headers.get("accept")?.includes(_streamContentType)) {
-    return _streamChat(input, send);
+    return _streamChat({ ...input, userId: user.id }, send);
   }
 
   try {
-    return Response.json({ reply: await send(input.message, input.userId) });
+    return Response.json({ reply: await send(input.message, user.id) });
   } catch {
     return Response.json({ error: _serviceUnavailableMessage }, { status: 502 });
   }
