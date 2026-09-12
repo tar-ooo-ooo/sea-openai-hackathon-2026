@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
 const _openAiApiKey = process.env.OPENAI_API_KEY;
+const _databaseUrl = process.env.DATABASE_URL;
 
 before(() => {
   delete process.env.OPENAI_API_KEY;
@@ -10,8 +11,11 @@ before(() => {
 after(() => {
   if (_openAiApiKey === undefined) delete process.env.OPENAI_API_KEY;
   else process.env.OPENAI_API_KEY = _openAiApiKey;
+  if (_databaseUrl === undefined) delete process.env.DATABASE_URL;
+  else process.env.DATABASE_URL = _databaseUrl;
 });
 
+process.env.DATABASE_URL ??= "postgresql://test:test@localhost/test";
 const { handleChat } = await import("./handle-chat.ts");
 
 test("handleChat 拒絕不合法的訊息", async () => {
@@ -59,4 +63,13 @@ test("handleChat 以 NDJSON 回傳進度與結果", async () => {
   } finally {
     delete process.env.OPENAI_API_KEY;
   }
+});
+
+test("handleChat 拒絕不合法的 userId", async () => {
+  const response = await handleChat(new Request("http://localhost/chat", {
+    method: "POST",
+    body: JSON.stringify({ message: "我要申請長照", userId: "not-a-uuid" }),
+  }));
+
+  assert.equal(response.status, 400);
 });

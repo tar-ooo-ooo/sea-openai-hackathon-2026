@@ -13,6 +13,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { ApplicationIntakeData } from "../../types/application-intake.ts";
 
 export const chatRole = pgEnum("chat_role", ["assistant", "user"]);
 export const userRole = pgEnum("user_role", ["user", "admin"]);
@@ -25,6 +26,10 @@ export const applicationCategory = pgEnum("application_category", [
 export const applicationServiceStatus = pgEnum("application_service_status", [
   "尚未申請",
   "已送出",
+]);
+export const applicationIntakeStatus = pgEnum("application_intake_status", [
+  "collecting",
+  "packaged",
 ]);
 export const triageUrgency = pgEnum("triage_urgency", ["follow_up", "emergency"]);
 
@@ -90,6 +95,28 @@ export const applicationServices = pgTable(
       sql`${table.position} between 0 and 7`,
     ),
   ],
+);
+
+export const applicationIntakes = pgTable(
+  "application_intakes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: applicationIntakeStatus("status").default("collecting").notNull(),
+    data: jsonb("data")
+      .$type<ApplicationIntakeData>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    applicationPackageId: uuid("application_package_id").references(
+      () => applicationPackages.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("application_intakes_user_status_idx").on(table.userId, table.status)],
 );
 
 export const chatMessages = pgTable(
