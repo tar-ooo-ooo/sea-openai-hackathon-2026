@@ -32,7 +32,7 @@ function _mergeData(
     consent: { ...current.consent, ...patch.consent },
     precheck: { ...current.precheck, ...patch.precheck },
   };
-  if (patch.applicant?.relationship?.trim() === "本人") data.applicantRole = "SELF";
+  if (data.applicant?.relationship?.trim() === "本人") data.applicantRole = "SELF";
   if (data.applicantRole === "SELF") {
     data.applicant.relationship = undefined;
     data.consent.proxyConfirmed = undefined;

@@ -17,6 +17,7 @@ import {
 } from "../application-intakes/collect-application-intake.ts";
 import {
   getMissingApplicationFields,
+  normalizeApplicationIntakeData,
   optionalApplicationFields,
 } from "../application-intakes/application-intake-rules.ts";
 import { partitionChatHistory } from "./chat-context.ts";
@@ -87,12 +88,13 @@ export async function sendMessage(
   if (!intake && isPackageUpdateIntent) {
     reply = "目前找不到可修改的長照服務禮包，請先完成一份長照申請資料。";
   } else if (intake) {
+    const applicationData = normalizeApplicationIntakeData(intake.data);
     reply = await runChatAgent(
       message,
       {
         status: intake.status,
-        data: intake.data,
-        missingFields: getMissingApplicationFields(intake.data),
+        data: applicationData,
+        missingFields: getMissingApplicationFields(applicationData),
         optionalFields: optionalApplicationFields,
         applicationUrl: `http://localhost:3003/apply/${intake.id}`,
         collect: (patch) =>

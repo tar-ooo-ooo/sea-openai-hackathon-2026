@@ -12,15 +12,22 @@ const _hasBirthDate = (value: unknown) => {
 };
 
 export function normalizeApplicationIntakeData(data: ApplicationIntakeData): ApplicationIntakeData {
-  if (data.applicantRole !== "SELF") return data;
+  if (data.applicantRole !== "SELF" && data.applicant?.relationship?.trim() !== "本人") return data;
   const name = _hasText(data.applicant?.name) ? data.applicant?.name : data.recipient?.name;
   const nationalId = _hasText(data.applicant?.nationalId)
     ? data.applicant?.nationalId
     : data.recipient?.nationalId;
   return {
     ...data,
-    applicant: { ...data.applicant, ...(name ? { name } : {}), ...(nationalId ? { nationalId } : {}) },
+    applicantRole: "SELF",
+    applicant: {
+      ...data.applicant,
+      relationship: undefined,
+      ...(name ? { name } : {}),
+      ...(nationalId ? { nationalId } : {}),
+    },
     recipient: { ...data.recipient, ...(name ? { name } : {}), ...(nationalId ? { nationalId } : {}) },
+    consent: { ...data.consent, proxyConfirmed: undefined },
   };
 }
 

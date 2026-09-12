@@ -66,8 +66,12 @@ test("回答本人時改為本人申請且不再要求代辦同意", async (cont
   const result = await collectApplicationIntake(
     _userId,
     _intakeId,
-    { applicantRole: "FAMILY_PROXY", consent: { proxyConfirmed: true } },
-    { applicant: { relationship: "本人" } },
+    {
+      applicantRole: "FAMILY_PROXY",
+      applicant: { relationship: "本人" },
+      consent: { proxyConfirmed: true },
+    },
+    {},
   );
 
   assert.equal(savedData.applicantRole, "SELF");

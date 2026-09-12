@@ -44,6 +44,13 @@ test("本人申請時姓名與證號只需提供一次", () => {
   });
   assert.equal(recipientOnly.includes("申請人姓名"), false);
   assert.equal(recipientOnly.includes("有效的申請人身分證字號或居留證號"), false);
+
+  const incorrectlyStoredAsRelationship = getMissingApplicationFields({
+    applicantRole: "FAMILY_PROXY",
+    applicant: { relationship: "本人" },
+  });
+  assert.equal(incorrectlyStoredAsRelationship.includes("申請人與被照顧者的關係"), false);
+  assert.equal(incorrectlyStoredAsRelationship.includes("代理申請同意"), false);
 });
 
 test("getMissingApplicationFields 拒絕格式錯誤的個資", () => {
