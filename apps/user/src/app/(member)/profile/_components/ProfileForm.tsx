@@ -64,7 +64,7 @@ export default function ProfileForm() {
 
   return <section className={styles.panel} aria-label="個人檔案編輯">
     <div className={styles.heading}><h2>基本資料</h2><span>僅供本人使用</span></div>
-    <p className="muted">比賽測試請使用虛構資料。填寫或儲存不代表同意代填、送件或變更被照顧者資料。</p>
+    <p className="muted">填寫或儲存不代表同意代填、送件或變更被照顧者資料。</p>
     {loading && <p role="status">正在載入個人檔案…</p>}
     {message && <p role="status" className={styles.success}>{message}</p>}
     {error && <div role="alert" className="error-message">{error} <Link href="/login">前往登入</Link></div>}

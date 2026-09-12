@@ -60,6 +60,5 @@ export default function AuthForm() {
         <button className="button primary full" type="submit">{busy ? "正在處理…" : registering ? "建立帳號並登入" : "登入"}<span aria-hidden="true">→</span></button>
       </fieldset>
     </form>
-    <p className="small muted">本次為黑客松 Demo，請勿使用真實個資或常用密碼。</p>
   </div>;
 }
