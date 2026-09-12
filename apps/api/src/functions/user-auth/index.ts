@@ -1,32 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser, getCurrentUser } from "../../methods/user-auth";
 import { isValidNationalId, isValidPassword } from "../../methods/user-auth/credentials";
+import { isAllowedOrigin } from "../../lib/allowed-origin";
 
 const _cookieName = "care_user_session";
 // 單一 API process 的 MVP 限流，避免無限制執行昂貴密碼雜湊。
 let _attempts = 0;
 let _windowStart = 0;
 
-function _allowedOrigins(): string[] {
-  return process.env.NODE_ENV === "production"
-    ? (process.env.USER_AUTH_ALLOWED_ORIGINS ?? "").split(",").map((value) => value.trim()).filter(Boolean)
-    : ["http://localhost:3000", "http://localhost:3001"];
-}
-
 export async function handleUserAuth(request: NextRequest, action: string) {
   const origin = request.headers.get("origin");
-  const allowed = !!origin && _allowedOrigins().includes(origin);
-  const headers = new Headers({ "Cache-Control": "no-store", Vary: "Origin" });
-  if (allowed) {
-    headers.set("Access-Control-Allow-Origin", origin);
-    headers.set("Access-Control-Allow-Credentials", "true");
-    headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    headers.set("Access-Control-Allow-Headers", "Content-Type");
-  }
+  const allowed = isAllowedOrigin(origin);
+  const headers = new Headers({ "Cache-Control": "no-store" });
   const reply = (body: object, status = 200) => NextResponse.json(body, { status, headers });
   if (!["login", "register", "session", "logout"].includes(action)) return reply({ error: "找不到此功能。" }, 404);
   if (origin && !allowed) return reply({ error: "不允許此來源。" }, 403);
-  if (request.method === "OPTIONS") return new NextResponse(null, { status: allowed ? 204 : 403, headers });
   try {
     if (action === "session" && request.method === "GET") {
       return reply({ user: await getCurrentUser(request.cookies.get(_cookieName)?.value) });

@@ -6,4 +6,3 @@ export async function GET(request: NextRequest, context: { params: Promise<{ act
 }
 
 export const POST = GET;
-export const OPTIONS = GET;
