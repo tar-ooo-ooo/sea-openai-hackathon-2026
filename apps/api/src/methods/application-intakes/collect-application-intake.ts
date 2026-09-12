@@ -4,8 +4,10 @@ import {
   findApplicationIntake,
   findCollectingApplicationIntake,
   replaceApplicationPackage,
+  saveApplicationFormReview,
   updateApplicationIntake,
 } from "../../services/application-intakes.ts";
+import { reviewApplicationForm } from "../../services/openai/chat-agent.ts";
 import type {
   ApplicationIntakeData,
   ApplicationIntakeProgress,
@@ -45,6 +47,36 @@ function _buildApplicationPackage(data: ApplicationIntakeData) {
   };
 }
 
+function _listDataFields(value: unknown, prefix = ""): string[] {
+  if (Array.isArray(value)) return value.length > 0 && prefix ? [prefix] : [];
+  if (value && typeof value === "object") {
+    return Object.entries(value).flatMap(([key, child]) =>
+      _listDataFields(child, prefix ? `${prefix}.${key}` : key),
+    );
+  }
+  return value !== undefined && value !== null && value !== "" && prefix ? [prefix] : [];
+}
+
+function _pickDataFields(data: ApplicationIntakeData, fields: string[]): ApplicationIntakeData {
+  const source = data as Record<string, unknown>;
+  const picked: Record<string, unknown> = {};
+  for (const path of fields) {
+    const [section, field, ...rest] = path.split(".");
+    if ([section, field].some((key) => key === "__proto__" || key === "constructor")) continue;
+    if (!field) {
+      picked[section] = source[section];
+    } else if (rest.length === 0) {
+      const sectionData = source[section];
+      if (sectionData && typeof sectionData === "object" && !Array.isArray(sectionData)) {
+        const sectionFields = (picked[section] as Record<string, unknown> | undefined) ?? {};
+        sectionFields[field] = (sectionData as Record<string, unknown>)[field];
+        picked[section] = sectionFields;
+      }
+    }
+  }
+  return picked as ApplicationIntakeData;
+}
+
 export async function getOrCreateApplicationIntake(userId: string) {
   return (await findCollectingApplicationIntake(userId)) ?? createApplicationIntake(userId);
 }
@@ -67,7 +99,41 @@ export async function collectApplicationIntake(
 
 export async function getApplicationIntakeForReview(userId: string, intakeId: string) {
   const intake = await findApplicationIntake(intakeId, userId);
-  return intake?.status === "collecting" ? { id: intake.id, data: intake.data } : null;
+  if (intake?.status !== "collecting") return null;
+  return {
+    id: intake.id,
+    data: _pickDataFields(
+      intake.data,
+      intake.formReview?.prefillFields ??
+        _listDataFields(intake.data).filter((field) => !field.startsWith("consent.")),
+    ),
+  };
+}
+
+export async function prepareApplicationForm(
+  userId: string,
+  intakeId: string,
+): Promise<ApplicationIntakeProgress> {
+  const intake = await findApplicationIntake(intakeId, userId);
+  if (!intake || intake.status !== "collecting") {
+    throw new Error("Application intake not found");
+  }
+  const missingFields = getMissingApplicationFields(intake.data);
+  if (missingFields.length > 0) return { status: "collecting", missingFields };
+
+  const availableFields = _listDataFields(intake.data).filter(
+    (field) => !field.startsWith("consent."),
+  );
+  const review = await reviewApplicationForm(intake.data, availableFields);
+  const availableFieldSet = new Set(availableFields);
+  const prefillFields = [...new Set(review.prefillFields)].filter((field) =>
+    availableFieldSet.has(field),
+  );
+  if (prefillFields.length === 0) throw new Error("Sol selected no form fields");
+
+  const formReview = { prefillFields };
+  await saveApplicationFormReview(intake.id, userId, formReview);
+  return { status: "ready", missingFields: [], formReview };
 }
 
 export async function submitApplicationIntake(

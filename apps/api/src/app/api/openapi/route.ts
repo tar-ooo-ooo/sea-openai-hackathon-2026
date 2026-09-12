@@ -36,7 +36,7 @@ const _openApiDocument = {
     "/api/application-intakes/{id}": {
       get: {
         tags: ["Applications"], summary: "讀取 Agent 已收整的申請草稿",
-        description: "只回傳登入使用者本人尚未正式送出的完整草稿，供申請頁檢視與修改。",
+        description: "只回傳登入使用者本人尚未正式送出的草稿；若已完成 Sol 表單分析，只包含核准預填的欄位，供申請頁檢視與修改。",
         security: [{ userSession: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: {

@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Runner } from "@openai/agents";
 
-import { runChatAgent, summarizeChatHistory } from "./chat-agent.ts";
+import {
+  reviewApplicationForm,
+  runChatAgent,
+  summarizeChatHistory,
+} from "./chat-agent.ts";
 
 test("Chat Agent 同時取得摘要與近期訊息", async (context) => {
   let input = "";
@@ -58,7 +62,13 @@ test("申請 Agent 只收整資料，不提早建立正式案件", async (contex
     data: {},
     missingFields: [],
     optionalFields: [],
+    applicationUrl: "http://localhost:3003/apply/intake-a",
     collect: async () => ({ status: "ready", missingFields: [] }),
+    prepare: async () => ({
+      status: "ready",
+      missingFields: [],
+      formReview: { prefillFields: ["jurisdiction"] },
+    }),
     update: async () => ({
       status: "packaged",
       missingFields: [],
@@ -66,7 +76,9 @@ test("申請 Agent 只收整資料，不提早建立正式案件", async (contex
     }),
   });
 
-  assert.deepEqual(toolNames, ["collect_application_intake"]);
+  assert.deepEqual(toolNames, ["collect_application_intake", "prepare_application_form"]);
+  assert.match(instructions, /Sol 已完成表單欄位分析/);
+  assert.match(instructions, /http:\/\/localhost:3003\/apply\/intake-a/);
   assert.match(instructions, /正式案件只能在使用者檢視並確認表單後建立/);
   assert.match(instructions, /申請長照服務：https:\/\/1966\.gov\.tw/);
 });
@@ -83,7 +95,9 @@ test("修改既有禮包時只提供更新 tool", async (context) => {
     data: { intake: { requestedServices: ["照顧服務"] } },
     missingFields: [],
     optionalFields: [],
+    applicationUrl: "http://localhost:3003/apply/intake-a",
     collect: async () => ({ status: "ready", missingFields: [] }),
+    prepare: async () => ({ status: "ready", missingFields: [] }),
     update: async () => ({
       status: "packaged",
       missingFields: [],
@@ -92,4 +106,26 @@ test("修改既有禮包時只提供更新 tool", async (context) => {
   });
 
   assert.deepEqual(toolNames, ["update_application_package"]);
+});
+
+test("Sol 使用結構化輸出分析可預填欄位", async (context) => {
+  let model = "";
+  let reasoning;
+  let input = "";
+  context.mock.method(Runner.prototype, "run", async (agent, nextInput) => {
+    model = agent.model;
+    reasoning = agent.modelSettings.reasoning;
+    input = nextInput;
+    return { finalOutput: { prefillFields: ["jurisdiction", "recipient.name"] } };
+  });
+
+  const result = await reviewApplicationForm(
+    { jurisdiction: "臺北市", recipient: { name: "測試使用者" } },
+    ["jurisdiction", "recipient.name"],
+  );
+
+  assert.equal(model, "gpt-5.6-sol");
+  assert.deepEqual(reasoning, { effort: "medium" });
+  assert.match(input, /availableFields/);
+  assert.deepEqual(result, { prefillFields: ["jurisdiction", "recipient.name"] });
 });
