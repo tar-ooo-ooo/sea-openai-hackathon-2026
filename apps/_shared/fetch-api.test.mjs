@@ -17,3 +17,11 @@ test("fetchApi 在 API 失敗時拋出狀態碼", async (context) => {
 
   await assert.rejects(fetchApi("/api/health"), /status 503/);
 });
+
+test("fetchApi 串流模式保留 body 並驗證格式", async (context) => {
+  context.mock.method(globalThis, "fetch", async () => new Response("{}\n", { headers: { "Content-Type": "application/x-ndjson" } }));
+  const stream = await fetchApi("/chat", {}, "stream");
+  assert.equal(await new Response(stream).text(), "{}\n");
+  context.mock.method(globalThis, "fetch", async () => Response.json({ reply: "wrong format" }));
+  await assert.rejects(fetchApi("/chat", {}, "stream"), /Invalid stream/);
+});

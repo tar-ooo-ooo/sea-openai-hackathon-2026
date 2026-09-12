@@ -1,4 +1,5 @@
 import { sendMessage } from "../../methods/chat/send-message.ts";
+import { getChatUser } from "./chat-session.ts";
 
 const _streamContentType = "application/x-ndjson";
 const _serviceUnavailableMessage = "AI service is temporarily unavailable";
@@ -77,7 +78,12 @@ function _streamChat(input: ChatInput, send: typeof sendMessage): Response {
 export async function handleChat(
   request: Request,
   send: typeof sendMessage = sendMessage,
+  getUser: typeof getChatUser = getChatUser,
 ): Promise<Response> {
+  let user;
+  try { user = await getUser(request); }
+  catch { return Response.json({ error: "Unable to verify session" }, { status: 503 }); }
+  if (!user) return Response.json({ error: "Please sign in" }, { status: 401 });
   const input = await _readInput(request);
 
   if (!input) {
@@ -86,6 +92,12 @@ export async function handleChat(
       { status: 400 },
     );
   }
+
+  // 相容舊 client，但絕不允許指定其他人的資料。
+  if (input.userId && input.userId !== user.id) {
+    return Response.json({ error: "User does not match session" }, { status: 403 });
+  }
+  input.userId = user.id;
 
   if (!process.env.OPENAI_API_KEY) {
     return Response.json({ error: "AI service is not configured" }, { status: 503 });

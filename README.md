@@ -33,7 +33,9 @@ npm run dev:api
 
 所有本機環境變數集中在專案根目錄 `.env.local`。使用資料庫前，請將其中的 `DATABASE_URL` 換成 Neon pooled connection string。兩個前端透過共用 `fetchApi` 呼叫 `http://localhost:3002`。
 
-`POST /chat` 接受 `{ "message": "...", "userId": "使用者 UUID（選填）" }`。帶上 `Accept: application/x-ndjson` 時，透過 OpenAI Agents SDK 逐行回傳 `progress`、`result` 或 `error` 事件；未指定時維持 `{ "reply": "..." }` JSON。登入使用者帶入 `userId` 時，API 只讀寫該使用者最近 20 則 `chat_messages`；表示要申請長照時，Agent 會把資料收整到該使用者的 `application_intakes`，完整後產生 `application_packages` 與 `application_services`。使用前須在根目錄 `.env.local` 設定 server-only `OPENAI_API_KEY`。
+`POST /chat` 接受 `{ "message": "..." }`，必須帶登入 cookie（前端使用 `credentials: "include"`）。API 由 session 決定使用者；舊版 `userId` 若與 session 不符會回傳 403，未登入回傳 401。帶上 `Accept: application/x-ndjson` 時，透過 OpenAI Agents SDK 逐行回傳 `progress`、`result` 或 `error` 事件；未指定時維持 `{ "reply": "..." }` JSON。API 讀取該使用者最近 20 則 `chat_messages` 作為上下文並保存新訊息；表示要申請長照時，Agent 會把資料收整到該使用者的 `application_intakes`，完整後產生 `application_packages` 與 `application_services`。使用前須在根目錄 `.env.local` 設定 server-only `OPENAI_API_KEY`，並確認 `drizzle/0001_bent_gabe_jones.sql` 已透過 migration 套用。
+
+`GET /api/chat/history` 依登入 cookie 回傳 `{ messages: [{ role, content }] }`，最多 20 則、由舊至新，不接受指定他人的 userId 且不快取。聊天頁重新整理會重讀紀錄。串流錯誤不會自動重送，需先重讀紀錄確認後端是否已保存；目前不提供完整歷史分頁、互動卡或 token 逐字串流。Agent 尚未做個資遮罩，Demo 僅能使用虛構資料。
 
 啟動 API 後可開啟 Swagger UI：`http://localhost:3002/api/docs`；OpenAPI JSON 位於 `http://localhost:3002/api/openapi`。
 
@@ -78,7 +80,7 @@ Schema 位於 `apps/api/src/services/db/schema.ts`，migration 位於 `drizzle/`
 
 - `/`：公開介紹首頁。
 - `/login`：身分證字號＋密碼登入／註冊；成功後導向 `/home`。
-- `/home`、`/chat`、`/cases`：需經 API 驗證登入狀態的桌面版型。聊天與案件目前為明確標示的待串接頁面，不建立假資料。
+- `/home`、`/chat`、`/cases`：需經 API 驗證登入狀態的桌面版型。聊天已串接真實 API、處理進度及最近 20 則歷史；案件仍為明確標示的待串接頁面。
 - 使用者 API：`POST /api/user-auth/register`、`POST /api/user-auth/login`、`POST /api/user-auth/logout`、`GET /api/user-auth/session`。
 - 註冊／登入 body：`{ "nationalId": "...", "password": "..." }`，成功只回傳 `{ user: { id, role } }`；不回傳身分證字號或密碼雜湊。
 - 註冊固定建立 `user` 角色，專員登入流程不在本次範圍。

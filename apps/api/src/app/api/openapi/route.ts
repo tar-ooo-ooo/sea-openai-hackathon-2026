@@ -11,6 +11,30 @@ const _openApiDocument = {
     { name: "Chat" },
   ],
   paths: {
+    "/api/chat/history": {
+      get: {
+        tags: ["Chat"],
+        summary: "取得登入使用者最近 20 則聊天紀錄（由舊至新）",
+        security: [{ userSession: [] }],
+        responses: {
+          "200": {
+            description: "聊天紀錄；Cache-Control: no-store",
+            content: { "application/json": { schema: {
+              type: "object", required: ["messages"], properties: { messages: {
+                type: "array", maxItems: 20, items: {
+                  type: "object", required: ["role", "content"], properties: {
+                    role: { type: "string", enum: ["user", "assistant"] }, content: { type: "string" },
+                  },
+                },
+              } },
+            } } },
+          },
+          "401": { description: "未登入或 session 已過期" },
+          "403": { description: "CORS 來源不允許" },
+          "503": { description: "無法驗證登入或讀取紀錄" },
+        },
+      },
+    },
     "/api/health": {
       get: {
         tags: ["Health"],
@@ -57,7 +81,8 @@ const _openApiDocument = {
       post: {
         tags: ["Chat"],
         summary: "與長照 Agent 對話",
-        description: "設定 Accept: application/x-ndjson 可逐行接收 progress、result 或 error 事件。",
+        security: [{ userSession: [] }],
+        description: "必須登入；身分由 care_user_session cookie 決定。設定 Accept: application/x-ndjson 可逐行接收 progress、result 或 error 事件。串流開始後的錯誤以 error 事件回傳，HTTP 狀態仍為 200。",
         requestBody: {
           required: true,
           content: {
@@ -80,6 +105,8 @@ const _openApiDocument = {
             },
           },
           "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { description: "未登入或 session 已過期" },
+          "403": { description: "userId 與 session 不符，或 CORS 來源不允許" },
           "502": { $ref: "#/components/responses/BadGateway" },
           "503": { $ref: "#/components/responses/ServiceUnavailable" },
         },
@@ -87,6 +114,9 @@ const _openApiDocument = {
     },
   },
   components: {
+    securitySchemes: {
+      userSession: { type: "apiKey", in: "cookie", name: "care_user_session" },
+    },
     schemas: {
       ChatRequest: {
         type: "object",
@@ -94,7 +124,7 @@ const _openApiDocument = {
         required: ["message"],
         properties: {
           message: { type: "string", minLength: 1, maxLength: 4000 },
-          userId: { type: "string", format: "uuid" },
+          userId: { type: "string", format: "uuid", deprecated: true, description: "不需傳入；若傳入必須與 session 使用者一致" },
         },
       },
       ChatResponse: {
@@ -126,7 +156,7 @@ const _openApiDocument = {
         },
       },
       ServiceUnavailable: {
-        description: "尚未設定 AI 服務",
+        description: "尚未設定 AI 服務，或無法驗證登入狀態",
         content: {
           "application/json": {
             schema: { $ref: "#/components/schemas/ErrorResponse" },

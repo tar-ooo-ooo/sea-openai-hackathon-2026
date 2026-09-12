@@ -1,5 +1,5 @@
-import { findUserById, findUserByNationalId, insertUser } from "../../services/user-auth";
-import { createSessionToken, getSessionSecret, hashPassword, readSessionToken, verifyPassword } from "./credentials";
+import { findUserById, findUserByNationalId, insertUser } from "../../services/user-auth.ts";
+import { createSessionToken, getSessionSecret, hashPassword, readSessionToken, verifyPassword } from "./credentials.ts";
 
 export async function authenticateUser(nationalId: string, password: string, register: boolean) {
   const secret = getSessionSecret();

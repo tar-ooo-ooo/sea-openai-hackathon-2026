@@ -15,6 +15,7 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
   assert.match(html, /\/api\/openapi/);
   assert.equal(document.openapi, "3.1.0");
   assert.deepEqual(Object.keys(document.paths).sort(), [
+    "/api/chat/history",
     "/api/database/clear",
     "/api/health",
     "/chat",
