@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Markdown from "react-markdown";
 import { fetchApi } from "@/lib/fetch-api";
-import { readChatStream, readHistory, shouldSendOnEnter, type ChatMessage, type ChatProgress } from "./chat-events";
+import { readChatStream, readHistory, validateTriageResult, shouldSendOnEnter, type ChatMessage, type ChatProgress } from "./chat-events";
 import styles from "./chat-panel.module.css";
 import ApplicationReview from "./ApplicationReview";
 
@@ -16,6 +16,7 @@ export default function ChatPanel() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [triageFailed, setTriageFailed] = useState(false);
   const [progress, setProgress] = useState<ChatProgress[]>([]);
   const [reload, setReload] = useState(0);
   const [needsReload, setNeedsReload] = useState(false);
@@ -23,6 +24,12 @@ export default function ChatPanel() {
   const activeRequest = useRef<AbortController | null>(null);
   const sendLock = useRef(false);
   const end = useRef<HTMLDivElement>(null);
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,6 +61,15 @@ export default function ChatPanel() {
     setProgress([]);
     setDraft("");
     setMessages((current) => [...current, { role: "user", content: message }]);
+    // 與聊天並行，不共用聊天 abort，不因回覆完成或重載歷史取消分流。
+    // 不自動重試；錯誤也可能代表資料庫已寫入但回應遺失。
+    void fetchApi<unknown>("/api/emergency-triages", {
+      method: "POST", credentials: "include", signal: AbortSignal.timeout(35_000),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    }).then(validateTriageResult).catch(() => {
+      if (mounted.current) setTriageFailed(true);
+    });
     // 不自動重送：後端可能已保存訊息或建立申請。
     const timeout = setTimeout(() => controller.abort(), 120_000);
     try {
@@ -105,6 +121,7 @@ export default function ChatPanel() {
       </div>
     </div>
     <div className={styles.composer}>
+    {triageFailed && <p className="error-message" role="alert">部分訊息的危急分流未能確認完成，不代表沒有風險或已通報；聊天仍可繼續。</p>}
     {error && <div className="error-message" role="alert">{error} <Link href="/login" className="quiet-link">前往登入</Link></div>}
     {needsReload && <button className="button secondary" disabled={sending || loading} onClick={() => { setLoading(true); setError(""); setReload((value) => value + 1); }}>重新載入紀錄</button>}
     <p className={styles.promptLabel}>你可以這樣問</p>

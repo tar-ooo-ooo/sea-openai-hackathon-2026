@@ -34,6 +34,32 @@ const _openApiDocument = {
     { name: "Applications" },
   ],
   paths: {
+    "/api/emergency-triages": {
+      post: {
+        tags: ["Chat"], summary: "語意分流並保存需追蹤或危急事件",
+        description: "聊天頁送出訊息時並行呼叫此端點，不阻擋聊天回覆。需可信 Origin 與本人 session，不接受 query。只將 message 傳給 OpenAI，不附 profile；一般訊息不寫入。不是醫療診斷或救護通報。每次成功提交可新增一筆，沒有重試去重；503 不代表無風險，亦可能是寫入結果未知，不可盲目重送。",
+        security: [{ userSession: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: {
+          type: "object", additionalProperties: false, required: ["message"],
+          properties: { message: { type: "string", minLength: 1, maxLength: 4000, pattern: "\\S", description: "非空白原始訊息，保留前後空白" } },
+        } } } },
+        responses: {
+          "200": { description: "分類完成；Cache-Control: no-store", content: { "application/json": { schema: {
+            oneOf: [
+              { type: "object", required: ["urgency", "saved", "triageId"], properties: {
+                urgency: { const: "normal" }, saved: { const: false }, triageId: { type: "null" },
+              } },
+              { type: "object", required: ["urgency", "saved", "triageId"], properties: {
+                urgency: { type: "string", enum: ["follow_up", "emergency"] }, saved: { const: true }, triageId: { type: "string", format: "uuid" },
+              } },
+            ],
+          } } } },
+          "400": { description: "JSON、message 或 query 無效" },
+          "401": { description: "未登入" }, "403": { description: "角色或來源不允許" },
+          "503": { description: "身分驗證、模型分類或資料庫儲存失敗；不回傳 normal" },
+        },
+      },
+    },
     "/api/application-intakes/{id}": {
       get: {
         tags: ["Applications"], summary: "讀取 Agent 已收整的申請草稿",
