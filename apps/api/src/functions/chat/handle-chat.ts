@@ -12,6 +12,10 @@ const _promptInjectionPatterns = [
 
 type ChatInput = { message: string; userId?: string };
 
+function _result(value: Awaited<ReturnType<typeof sendMessage>> | string) {
+  return typeof value === "string" ? { reply: value } : value;
+}
+
 function _isPromptInjection(message: string) {
   const normalizedMessage = message
     .normalize("NFKC")
@@ -61,13 +65,13 @@ function _streamChat(input: ChatInput & { userId: string }, send: typeof sendMes
       };
 
       try {
-        const reply = await send(
+        const result = _result(await send(
           input.message,
           input.userId,
           (progress) => write({ type: "progress", progress }),
-        );
+        ));
 
-        write({ type: "result", result: { reply } });
+        write({ type: "result", result });
       } catch {
         write({ type: "error", error: _serviceUnavailableMessage });
       } finally {
@@ -126,7 +130,7 @@ export async function handleChat(
   }
 
   try {
-    return Response.json({ reply: await send(input.message, user.id) });
+    return Response.json(_result(await send(input.message, user.id)));
   } catch {
     return Response.json({ error: _serviceUnavailableMessage }, { status: 502 });
   }

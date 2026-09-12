@@ -27,11 +27,16 @@ export type ChatProgress = {
   status: "active" | "complete";
 };
 
+export type ChatResult = {
+  reply: string;
+  action?: { type: "application_computer"; intakeId: string };
+};
+
 export async function sendMessage(
   message: string,
   userId: string,
   onProgress?: (progress: ChatProgress) => void,
-): Promise<string> {
+): Promise<ChatResult> {
   onProgress?.({ id: "prepare", label: "正在準備本次協助", status: "active" });
   onProgress?.({ id: "prepare", label: "已準備本次協助", status: "complete" });
   onProgress?.({ id: "analysis", label: "正在整理回覆", status: "active" });
@@ -78,6 +83,7 @@ export async function sendMessage(
         ? packagedIntake
         : undefined);
   let reply: string;
+  let action: ChatResult["action"];
   if (!intake && isPackageUpdateIntent) {
     reply = "目前找不到可修改的長照服務禮包，請先完成一份長照申請資料。";
   } else if (intake) {
@@ -94,6 +100,9 @@ export async function sendMessage(
         prepare: async () => {
           onProgress?.({ id: "form", label: "正在整理申請資料", status: "active" });
           const result = await prepareApplicationForm(intake.userId, intake.id);
+          if (result.status === "ready") {
+            action = { type: "application_computer", intakeId: intake.id };
+          }
           onProgress?.({ id: "form", label: "已完成申請資料整理", status: "complete" });
           return result;
         },
@@ -111,5 +120,5 @@ export async function sendMessage(
   onProgress?.({ id: "analysis", label: "已整理回覆", status: "complete" });
   onProgress?.({ id: "reply", label: "已完成回覆", status: "complete" });
 
-  return reply;
+  return { reply, ...(action ? { action } : {}) };
 }

@@ -6,7 +6,6 @@ import Markdown from "react-markdown";
 import { fetchApi } from "@/lib/fetch-api";
 import { readChatStream, readHistory, shouldSendOnEnter, type ChatMessage, type ChatProgress } from "./chat-events";
 import styles from "./chat-panel.module.css";
-import ApplicationReview from "./ApplicationReview";
 
 const _suggestedPrompts = ["我想申請長照服務", "家人生活起居需要協助", "幫我整理長照申請流程"];
 
@@ -19,7 +18,8 @@ export default function ChatPanel() {
   const [progress, setProgress] = useState<ChatProgress[]>([]);
   const [reload, setReload] = useState(0);
   const [needsReload, setNeedsReload] = useState(false);
-  const [reviewCaseId, setReviewCaseId] = useState<string | null>(null);
+  const [startingComputer, setStartingComputer] = useState<string | null>(null);
+  const [computerNotice, setComputerNotice] = useState<{ intakeId: string; text: string } | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
   const sendLock = useRef(false);
   const end = useRef<HTMLDivElement>(null);
@@ -81,6 +81,28 @@ export default function ChatPanel() {
     }
   }
 
+  async function startComputer(intakeId: string) {
+    if (startingComputer) return;
+    setStartingComputer(intakeId);
+    setComputerNotice({ intakeId, text: "正在啟動申請操作視窗…" });
+    try {
+      await fetchApi<{ opened: true }>(`/api/application-intakes/${intakeId}/computer`, {
+        method: "POST",
+        credentials: "include",
+      });
+      setComputerNotice({ intakeId, text: "申請操作視窗已開啟；請親自確認同意與送出。" });
+    } catch (cause) {
+      setComputerNotice({
+        intakeId,
+        text: cause instanceof Error && cause.message.includes("status 409")
+          ? "這份申請已建立正式案件，不能再次啟動代填。"
+          : "無法啟動操作視窗，請確認 API、application 與 Chrome 都已啟動。",
+      });
+    } finally {
+      setStartingComputer(null);
+    }
+  }
+
   return <section className={styles.panel} aria-label="與智慧小幫手對話">
     <header className={styles.heading}>
       <span className={styles.headerIcon} aria-hidden="true">✦</span>
@@ -94,9 +116,12 @@ export default function ChatPanel() {
         {message.role === "assistant" ? <div className={styles.bubble}>
           <Markdown>{message.content}</Markdown>
           {message.action && <div className={styles.messageActions}>
-            <button type="button" className="button secondary" onClick={() => setReviewCaseId(message.action?.caseId ?? null)}>查看申請資料</button>
-            <button type="button" className="button primary" disabled aria-describedby={`autofill-note-${index}`}>開始代填申請</button>
-            <p id={`autofill-note-${index}`}>代填功能串接中，目前不會開啟表單或送出申請。</p>
+            <button type="button" className="button primary" disabled={startingComputer !== null} aria-describedby={`autofill-note-${index}`} onClick={() => void startComputer(message.action!.intakeId)}>
+              {startingComputer === message.action.intakeId ? "正在啟動…" : "開啟自動操作視窗"}
+            </button>
+            <p id={`autofill-note-${index}`}>{computerNotice?.intakeId === message.action.intakeId
+              ? computerNotice.text
+              : "會將申請畫面提供給 AI 檢查並開啟獨立 Chrome；同意與送出仍由你操作。"}</p>
           </div>}
         </div> : <p className={styles.bubble}>{message.content}</p>}
       </article>)}
@@ -121,6 +146,5 @@ export default function ChatPanel() {
     <p id="chat-hint" className={styles.hint}>Enter 送出 · Shift／⌘ + Enter 換行 <span>{draft.length} / 4000 字</span></p>
     <p id="chat-privacy" className={styles.notice}>申請整理不代表已送出申請。歷史顯示最近 20 則。</p>
     </div>
-    {reviewCaseId && <ApplicationReview caseId={reviewCaseId} onClose={() => setReviewCaseId(null)} />}
   </section>;
 }

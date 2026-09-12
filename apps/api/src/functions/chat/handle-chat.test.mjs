@@ -40,10 +40,10 @@ test("handleChat 未傳 userId 時使用 session 身分呼叫 Agent", async () =
     }), async (message, userId) => {
       assert.equal(message, "你好");
       assert.equal(userId, _userId);
-      return "OK";
+      return { reply: "OK", action: { type: "application_computer", intakeId: _userId } };
     }, _getUser);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { reply: "OK" });
+    assert.deepEqual(await response.json(), { reply: "OK", action: { type: "application_computer", intakeId: _userId } });
   } finally {
     delete process.env.OPENAI_API_KEY;
   }
@@ -112,7 +112,7 @@ test("handleChat 以 NDJSON 回傳進度與結果", async () => {
       assert.equal(message, "你好");
       assert.equal(userId, _userId);
       onProgress?.({ id: "analysis", label: "正在整理回覆", status: "active" });
-      return "OK";
+      return { reply: "OK", action: { type: "application_computer", intakeId: _userId } };
     }, async () => ({ id: _userId, role: "user" }));
     const events = (await response.text()).trim().split("\n").map(JSON.parse);
 
@@ -123,7 +123,7 @@ test("handleChat 以 NDJSON 回傳進度與結果", async () => {
         type: "progress",
         progress: { id: "analysis", label: "正在整理回覆", status: "active" },
       },
-      { type: "result", result: { reply: "OK" } },
+      { type: "result", result: { reply: "OK", action: { type: "application_computer", intakeId: _userId } } },
     ]);
   } finally {
     delete process.env.OPENAI_API_KEY;
@@ -169,4 +169,17 @@ test("歷史查詢只使用 session 身分並且不快取", async () => {
   const failed = await handleHistory(request, _getUser, async () => { throw new Error("private detail"); });
   assert.equal(failed.status, 503);
   assert.doesNotMatch(await failed.text(), /private detail/);
+});
+
+test("歷史只有目前可操作的草稿才帶 Computer Tool action", async () => {
+  const { getChatHistory } = await import("../../methods/chat/get-history.ts");
+  const content = `請檢視：http://localhost:3003/apply/${_userId}`;
+  const messages = [{ role: "assistant", content }];
+  const active = await getChatHistory(
+    _userId,
+    async () => messages,
+    async () => ({ id: _userId, formReview: { prefillFields: ["recipient.name"] } }),
+  );
+  assert.deepEqual(active[0].action, { type: "application_computer", intakeId: _userId });
+  assert.deepEqual(await getChatHistory(_userId, async () => messages, async () => null), messages);
 });

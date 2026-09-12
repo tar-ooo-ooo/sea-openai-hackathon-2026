@@ -83,6 +83,26 @@ const _openApiDocument = {
         },
       },
     },
+    "/api/application-intakes/{id}/computer": {
+      post: {
+        tags: ["Applications"],
+        summary: "以 Computer Tool 開啟申請操作視窗",
+        description: "只限本人尚未送出的申請草稿。API 以目前登入 session 在本機 Chrome 開啟申請頁，Agent 只確認頁面成功載入；同意、確認與送出仍須由使用者親自操作。",
+        security: [{ userSession: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": { description: "操作視窗已開啟", content: { "application/json": { schema: {
+            type: "object", required: ["opened"], properties: { opened: { type: "boolean", const: true } },
+          } } } },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "404": { description: "找不到本人尚未送出的草稿" },
+          "409": { description: "申請已建立正式案件，不能再次啟動代填" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
     "/api/profile": {
       get: {
         tags: ["Auth"], summary: "讀取本人個人檔案", security: [{ userSession: [] }],

@@ -20,6 +20,7 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
     "/api/admin/care-cases/{caseId}/assessments",
     "/api/admin/triages",
     "/api/application-intakes/{id}",
+    "/api/application-intakes/{id}/computer",
     "/api/case-drafts/{id}",
     "/api/cases",
     "/api/cases/{id}",
@@ -36,6 +37,8 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
   assert.deepEqual(document.components.schemas.ChatRequest.required, ["message"]);
   assert.ok(document.paths["/api/application-intakes/{id}"].get);
   assert.ok(document.paths["/api/application-intakes/{id}"].post.responses["200"]);
+  assert.ok(document.paths["/api/application-intakes/{id}/computer"].post.responses["200"]);
+  assert.ok(document.paths["/api/application-intakes/{id}/computer"].post.responses["409"]);
   assert.ok(document.paths["/chat"].post.responses["401"]);
   assert.ok(document.paths["/chat"].post.responses["403"]);
   assert.match(document.paths["/chat"].post.description, /洩漏提示詞/);

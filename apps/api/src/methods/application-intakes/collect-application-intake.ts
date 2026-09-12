@@ -110,6 +110,11 @@ export async function getApplicationIntakeForReview(userId: string, intakeId: st
   };
 }
 
+export async function getApplicationIntakeForComputer(userId: string, intakeId: string) {
+  const intake = await findApplicationIntake(intakeId, userId);
+  return intake ? { id: intake.id, status: intake.status } : null;
+}
+
 export async function prepareApplicationForm(
   userId: string,
   intakeId: string,
