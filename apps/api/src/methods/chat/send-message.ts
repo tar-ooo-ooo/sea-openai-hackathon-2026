@@ -18,8 +18,8 @@ export type ChatProgress = {
 
 export async function sendMessage(
   message: string,
+  userId: string,
   onProgress?: (progress: ChatProgress) => void,
-  userId?: string,
 ): Promise<string> {
   onProgress?.({ id: "prepare", label: "正在準備本次協助", status: "active" });
   onProgress?.({ id: "prepare", label: "已準備本次協助", status: "complete" });
@@ -27,20 +27,16 @@ export async function sendMessage(
 
   const isApplicationIntent = /(?:申請|辦理).{0,8}長照|長照.{0,8}(?:申請|辦理)/.test(message);
 
-  const [existingIntake, history] = userId
-    ? await Promise.all([
-        findCollectingApplicationIntake(userId),
-        listRecentChatMessages(userId),
-      ])
-    : [undefined, []];
-  if (userId) await saveChatMessage(userId, "user", message);
+  const [existingIntake, history] = await Promise.all([
+    findCollectingApplicationIntake(userId),
+    listRecentChatMessages(userId),
+  ]);
+  await saveChatMessage(userId, "user", message);
   const intake =
-    userId && (existingIntake || isApplicationIntent)
+    existingIntake || isApplicationIntent
       ? (existingIntake ?? (await getOrCreateApplicationIntake(userId)))
       : undefined;
-  const reply = !userId && isApplicationIntent
-    ? "請先登入後再開始收整長照申請資料。"
-    : intake
+  const reply = intake
     ? await runChatAgent(message, {
         data: intake.data,
         missingFields: getMissingApplicationFields(intake.data),
@@ -50,7 +46,7 @@ export async function sendMessage(
       }, history)
     : await runChatAgent(message, undefined, history);
 
-  if (userId) await saveChatMessage(userId, "assistant", reply);
+  await saveChatMessage(userId, "assistant", reply);
 
   onProgress?.({ id: "analysis", label: "已整理回覆", status: "complete" });
   onProgress?.({ id: "reply", label: "已完成回覆", status: "complete" });

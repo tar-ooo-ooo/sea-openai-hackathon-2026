@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateUser, getCurrentUser } from "../../methods/user-auth";
+import { authenticateUser, getCurrentUser, userSessionCookieName } from "../../methods/user-auth";
 import { isValidNationalId, isValidPassword } from "../../methods/user-auth/credentials";
 import { isAllowedOrigin } from "../../lib/allowed-origin";
 
-const _cookieName = "care_user_session";
 // 單一 API process 的 MVP 限流，避免無限制執行昂貴密碼雜湊。
 let _attempts = 0;
 let _windowStart = 0;
@@ -17,7 +16,7 @@ export async function handleUserAuth(request: NextRequest, action: string) {
   if (origin && !allowed) return reply({ error: "不允許此來源。" }, 403);
   try {
     if (action === "session" && request.method === "GET") {
-      return reply({ user: await getCurrentUser(request.cookies.get(_cookieName)?.value) });
+      return reply({ user: await getCurrentUser(request.cookies.get(userSessionCookieName)?.value) });
     }
     if (request.method !== "POST" || action === "session") return reply({ error: "不支援此操作。" }, 405);
     // 所有 cookie 寫入都要求明確可信 Origin，防止跨站登入／登出。
@@ -25,7 +24,7 @@ export async function handleUserAuth(request: NextRequest, action: string) {
     const cookieOptions = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge: 8 * 60 * 60 };
     if (action === "logout") {
       const response = reply({ ok: true });
-      response.cookies.set(_cookieName, "", { ...cookieOptions, maxAge: 0 });
+      response.cookies.set(userSessionCookieName, "", { ...cookieOptions, maxAge: 0 });
       return response;
     }
     const now = Date.now();
@@ -54,7 +53,7 @@ export async function handleUserAuth(request: NextRequest, action: string) {
     const result = await authenticateUser(nationalId, body.password, action === "register");
     if (!result) return reply({ error: action === "register" ? "無法建立帳號，請嘗試登入。" : "身分證字號或密碼錯誤。" }, action === "register" ? 409 : 401);
     const response = reply({ user: result.user }, action === "register" ? 201 : 200);
-    response.cookies.set(_cookieName, result.token, cookieOptions);
+    response.cookies.set(userSessionCookieName, result.token, cookieOptions);
     return response;
   } catch {
     // 不將資料庫例外、帳密或連線資訊回傳或輸出至 log。

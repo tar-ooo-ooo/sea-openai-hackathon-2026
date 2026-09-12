@@ -1,9 +1,11 @@
+import type { NextRequest } from "next/server";
 import { sendMessage } from "../../methods/chat/send-message.ts";
+import { getCurrentUser, userSessionCookieName } from "../../methods/user-auth/index.ts";
 
 const _streamContentType = "application/x-ndjson";
 const _serviceUnavailableMessage = "AI service is temporarily unavailable";
 
-type ChatInput = { message: string; userId?: string };
+type ChatInput = { message: string; userId: string };
 
 async function _readInput(request: Request): Promise<ChatInput | null> {
   try {
@@ -17,11 +19,10 @@ async function _readInput(request: Request): Promise<ChatInput | null> {
 
     if (typeof message !== "string") return null;
     if (
-      userId !== undefined &&
-      (typeof userId !== "string" ||
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-          userId,
-        ))
+      typeof userId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        userId,
+      )
     ) {
       return null;
     }
@@ -49,8 +50,8 @@ function _streamChat(input: ChatInput, send: typeof sendMessage): Response {
       try {
         const reply = await send(
           input.message,
-          (progress) => write({ type: "progress", progress }),
           input.userId,
+          (progress) => write({ type: "progress", progress }),
         );
 
         write({ type: "result", result: { reply } });
@@ -75,16 +76,28 @@ function _streamChat(input: ChatInput, send: typeof sendMessage): Response {
 }
 
 export async function handleChat(
-  request: Request,
+  request: NextRequest,
   send: typeof sendMessage = sendMessage,
+  getUser: typeof getCurrentUser = getCurrentUser,
 ): Promise<Response> {
   const input = await _readInput(request);
 
   if (!input) {
     return Response.json(
-      { error: "message must contain 1 to 4000 characters and userId must be a UUID" },
+      { error: "message must contain 1 to 4000 characters and userId is required and must be a UUID" },
       { status: 400 },
     );
+  }
+
+  let user;
+  try {
+    user = await getUser(request.cookies.get(userSessionCookieName)?.value);
+  } catch {
+    return Response.json({ error: _serviceUnavailableMessage }, { status: 502 });
+  }
+  if (!user) return Response.json({ error: "Authentication required" }, { status: 401 });
+  if (user.id !== input.userId) {
+    return Response.json({ error: "userId does not match the authenticated user" }, { status: 403 });
   }
 
   if (!process.env.OPENAI_API_KEY) {
@@ -96,7 +109,7 @@ export async function handleChat(
   }
 
   try {
-    return Response.json({ reply: await send(input.message, undefined, input.userId) });
+    return Response.json({ reply: await send(input.message, input.userId) });
   } catch {
     return Response.json({ error: _serviceUnavailableMessage }, { status: 502 });
   }

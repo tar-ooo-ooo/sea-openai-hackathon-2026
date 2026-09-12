@@ -17,6 +17,13 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
   assert.deepEqual(Object.keys(document.paths).sort(), [
     "/api/database/clear",
     "/api/health",
+    "/api/user-auth/login",
+    "/api/user-auth/logout",
+    "/api/user-auth/register",
+    "/api/user-auth/session",
     "/chat",
   ]);
+  assert.deepEqual(document.components.schemas.ChatRequest.required, ["message", "userId"]);
+  assert.ok(document.paths["/chat"].post.responses["401"]);
+  assert.ok(document.paths["/chat"].post.responses["403"]);
 });
