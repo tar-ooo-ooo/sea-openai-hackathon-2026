@@ -24,23 +24,6 @@ function _headers(cookie: string) {
   return { Cookie: cookie };
 }
 
-export async function loadAdminCases(cookie: string): Promise<AdminCaseListItem[]> {
-  const result = await fetchApi<unknown>("/api/admin/cases", {
-    cache: "no-store",
-    headers: _headers(cookie),
-  });
-
-  if (!result || typeof result !== "object" || !("cases" in result) || !Array.isArray(result.cases)) {
-    throw new Error("Invalid admin cases response");
-  }
-
-  if (!result.cases.every(_isAdminCaseListItem)) {
-    throw new Error("Invalid admin cases response");
-  }
-
-  return result.cases;
-}
-
 export async function loadAdminCase(cookie: string, caseId: string): Promise<AdminCaseDetail | null> {
   try {
     const result = await fetchApi<unknown>(`/api/admin/cases/${caseId}`, {

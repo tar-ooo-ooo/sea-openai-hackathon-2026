@@ -1,6 +1,25 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isValidNationalId, isValidPassword, hashPassword, verifyPassword, createSessionToken, readSessionToken } from "./credentials.ts";
+import { isValidNationalId, isValidUserAccountId, isValidPassword, hashPassword, verifyPassword, createSessionToken, readSessionToken } from "./credentials.ts";
+
+test("使用者 Demo 只在 development 略過檢查碼，正式與未設定環境仍嚴格驗證", () => {
+  const original = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = "development";
+    assert.equal(isValidUserAccountId("Q109283742"), true);
+    assert.equal(isValidNationalId("Q109283742"), false);
+    for (const value of ["Q309283742", "Q109", "q109283742", "", "Q10928374X"]) assert.equal(isValidUserAccountId(value), false);
+    for (const environment of ["production", "test", undefined]) {
+      if (environment === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = environment;
+      assert.equal(isValidUserAccountId("Q109283742"), false);
+      assert.equal(isValidUserAccountId("A123456789"), true);
+    }
+  } finally {
+    if (original === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = original;
+  }
+});
 
 test("身分證格式與檢查碼必須正確", () => {
   assert.equal(isValidNationalId("A123456789"), true);

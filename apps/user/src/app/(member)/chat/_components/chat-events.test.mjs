@@ -2,6 +2,21 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readChatStream, readHistory, shouldSendOnEnter } from "./chat-events.ts";
 
+test("申請動作在串流與歷史保留，使用者訊息和無效動作不產生入口", async () => {
+  const action = { type: "application_review", caseId: "00000000-0000-4000-8000-000000000001" };
+  const events = [];
+  await readChatStream(new Response(JSON.stringify({ type: "result", result: { reply: "請查看", action } })).body, (event) => events.push(event));
+  assert.deepEqual(events[0].result.action, action);
+  assert.deepEqual(readHistory({ messages: [{ role: "assistant", content: "請查看", action }] })[0].action, action);
+  assert.equal(readHistory({ messages: [{ role: "user", content: "請查看", action }] })[0].action, undefined);
+  for (const invalid of [null, { ...action, caseId: "../other" }, { ...action, type: "submit" }, { type: "application_review" }]) {
+    assert.deepEqual(readHistory({ messages: [{ role: "assistant", content: "文字仍在", action: invalid }] }), [{ role: "assistant", content: "文字仍在" }]);
+    const received = [];
+    await readChatStream(new Response(JSON.stringify({ type: "result", result: { reply: "文字仍在", action: invalid } })).body, (event) => received.push(event));
+    assert.deepEqual(received[0].result, { reply: "文字仍在" });
+  }
+});
+
 test("Enter 送出，但換行與中文輸入法選字不誤送", () => {
   const event = { key: "Enter", shiftKey: false, metaKey: false, isComposing: false, keyCode: 13 };
   assert.equal(shouldSendOnEnter(event), true);

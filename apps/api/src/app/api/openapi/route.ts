@@ -28,6 +28,7 @@ const _openApiDocument = {
     { name: "Health" },
     { name: "Database" },
     { name: "Auth" },
+    { name: "Admin" },
     { name: "Chat" },
     { name: "Cases" },
     { name: "Applications" },
@@ -79,6 +80,46 @@ const _openApiDocument = {
           "415": { $ref: "#/components/responses/UnsupportedMediaType" },
           "422": { description: "必填資料尚未完整" },
           "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
+    "/api/profile": {
+      get: {
+        tags: ["Auth"], summary: "讀取本人個人檔案", security: [{ userSession: [] }],
+        description: "不接受 query。未建立時 profile 為 null；所有回應 Cache-Control: no-store。",
+        responses: {
+          "200": { description: "本人資料或 null", content: { "application/json": { schema: { $ref: "#/components/schemas/ProfileResponse" } } } },
+          "400": { description: "不接受 query" }, "401": { description: "未登入" },
+          "403": { description: "角色或來源不允許" }, "503": { description: "資料服務不可用" },
+        },
+      },
+      put: {
+        tags: ["Auth"], summary: "儲存本人完整個人檔案", security: [{ userSession: [] }],
+        description: "使用者手動儲存；四項必填，不接受 userId 或其他欄位及 query。要求可信 Origin。依 session 建立或覆寫本人檔案；不更新案件、不授權送件，不供 Agent 自動覆寫。",
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/ProfileInput" } } } },
+        responses: {
+          "200": { description: "儲存成功；Cache-Control: no-store", content: { "application/json": { schema: { $ref: "#/components/schemas/ProfileResponse" } } } },
+          "400": { description: "欄位、日期、JSON 或 query 錯誤" }, "401": { description: "未登入" },
+          "403": { description: "角色或 Origin 不允許" }, "503": { description: "資料服務不可用" },
+        },
+      },
+    },
+    "/api/admin/triages": {
+      get: {
+        tags: ["Admin"], summary: "專員查詢緊急與追蹤分流紀錄",
+        description: "僅限專員。緊急優先，同程度依建立時間新至舊。聯絡資料來自使用者目前的 profile，非被照顧者或事件快照。沒有處理狀態、症狀或申請關聯。",
+        security: [{ adminSession: [] }],
+        responses: {
+          "200": { description: "成功；Cache-Control: no-store；無資料回傳空陣列", content: { "application/json": { schema: {
+            type: "object", required: ["triages"], properties: { triages: { type: "array", items: {
+              type: "object", required: ["id", "userId", "urgency", "createdAt", "name", "phone", "area"], properties: {
+                id: { type: "string", format: "uuid" }, userId: { type: "string", format: "uuid" },
+                urgency: { type: "string", enum: ["emergency", "follow_up"] }, createdAt: { type: "string", format: "date-time" },
+                name: { type: ["string", "null"] }, phone: { type: ["string", "null"] }, area: { type: ["string", "null"] },
+              },
+            } } },
+          } } } },
+          "401": { description: "未以專員身分登入" }, "403": { description: "來源不允許" }, "503": { description: "驗證或資料服務無法使用" },
         },
       },
     },
@@ -255,6 +296,69 @@ const _openApiDocument = {
         },
       },
     },
+    "/api/admin/care-cases": {
+      get: {
+        tags: ["Admin"],
+        summary: "查詢既有已接案個案",
+        description: "目前僅提供 GET。聊天需求轉接案已停用；正式申請接案待 application 資料來源串接後另行提供。既有個案與評估資料保留。",
+        security: [{ adminSession: [] }],
+        responses: {
+          "200": { description: "Care cases" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
+    "/api/admin/care-cases/{caseId}": {
+      get: {
+        tags: ["Admin"],
+        summary: "Read a formal care case and its Case 360 read model",
+        security: [{ adminSession: [] }],
+        parameters: [{
+          name: "caseId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        }],
+        responses: {
+          "200": { description: "Care case" },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
+    "/api/admin/care-cases/{caseId}/assessments": {
+      post: {
+        tags: ["Admin"],
+        summary: "Save a care-case assessment snapshot",
+        security: [{ adminSession: [] }],
+        parameters: [{
+          name: "caseId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/CreateAssessmentRequest" } },
+          },
+        },
+        responses: {
+          "201": { description: "Assessment snapshot created" },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "413": { $ref: "#/components/responses/PayloadTooLarge" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
     "/chat": {
       post: {
         tags: ["Chat"],
@@ -298,6 +402,11 @@ const _openApiDocument = {
         in: "cookie",
         name: "care_user_session",
       },
+      adminSession: {
+        type: "apiKey",
+        in: "cookie",
+        name: "care_admin_session",
+      },
     },
     schemas: {
       ApplicationIntakeData: {
@@ -335,12 +444,32 @@ const _openApiDocument = {
           } },
         },
       },
+      ProfileInput: {
+        type: "object", additionalProperties: false, required: ["name", "birthDate", "area", "phone"],
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 100 },
+          birthDate: { type: "string", format: "date", description: "有效曆日，1900-01-01 至臺灣當日日期" },
+          area: { type: "string", minLength: 1, maxLength: 100 },
+          phone: { type: "string", minLength: 6, maxLength: 20, description: "至少六位數字，允許開頭 +、空白、括號及連字號" },
+        },
+      },
+      ProfileResponse: {
+        type: "object", required: ["profile"], properties: { profile: {
+          oneOf: [
+            { type: "null" },
+            { type: "object", required: ["name", "birthDate", "area", "phone", "updatedAt"], properties: {
+              name: { type: "string" }, birthDate: { type: "string", format: "date" },
+              area: { type: "string" }, phone: { type: "string" }, updatedAt: { type: "string", format: "date-time" },
+            } },
+          ],
+        } },
+      },
       AuthRequest: {
         type: "object",
         additionalProperties: false,
         required: ["nationalId", "password"],
         properties: {
-          nationalId: { type: "string", pattern: "^[A-Z][12][0-9]{8}$", example: "A123456789" },
+          nationalId: { type: "string", pattern: "^[A-Z][12][0-9]{8}$", example: "A123456789", description: "使用者登入與註冊在 development 僅檢查格式；其他環境另驗證加權檢查碼。" },
           password: { type: "string", format: "password", minLength: 8, maxLength: 128 },
         },
       },
@@ -417,6 +546,15 @@ const _openApiDocument = {
         type: "object",
         required: ["reply"],
         properties: { reply: { type: "string" } },
+      },
+      CreateAssessmentRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["summary"],
+        properties: {
+          cmsLevel: { type: "integer", minimum: 0, maximum: 99 },
+          summary: { type: "string", minLength: 1, maxLength: 4000 },
+        },
       },
       ErrorResponse: {
         type: "object",
@@ -499,6 +637,14 @@ const _openApiDocument = {
       },
       InternalServerError: {
         description: "資料庫操作失敗",
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ErrorResponse" },
+          },
+        },
+      },
+      NotFound: {
+        description: "Resource not found",
         content: {
           "application/json": {
             schema: { $ref: "#/components/schemas/ErrorResponse" },
