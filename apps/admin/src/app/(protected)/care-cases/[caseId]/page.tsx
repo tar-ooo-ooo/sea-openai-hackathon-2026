@@ -51,7 +51,7 @@ export default async function CareCasePage({
         <article className="detail-card">
           <header><h2>案件狀態</h2><span className="status-tag status-referral">{_stageLabel[careCase.status]}</span></header>
           <dl>
-            <dt>接案時間</dt><dd>{_formatDate(careCase.acceptedAt)}</dd>
+            <dt>接案時間</dt><dd>{careCase.acceptedAt ? _formatDate(careCase.acceptedAt) : "尚未開始接案"}</dd>
             <dt>優先程度</dt><dd>{careCase.priority}</dd>
             <dt>地區</dt><dd>{careCase.area ?? "待補充"}</dd>
             <dt>來源</dt><dd>{careCase.sourceApplicationPackageId ? <Link href={`/cases/${careCase.sourceApplicationPackageId}`}>查看正式申請內容</Link> : "尚未記錄申請來源"}</dd>

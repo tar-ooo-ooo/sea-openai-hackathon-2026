@@ -23,7 +23,7 @@ export type CareCaseListItem = {
   status: CareCaseStatus;
   priority: CareCasePriority;
   assignedAdminId: string | null;
-  acceptedAt: string;
+  acceptedAt: string | null;
   updatedAt: string;
 };
 

@@ -9,7 +9,7 @@ export type CareCaseListItem = {
   status: "new" | "assessing" | "plan_review" | "matching" | "following_up" | "closed";
   priority: "low" | "normal" | "high" | "urgent";
   assignedAdminId: string | null;
-  acceptedAt: string;
+  acceptedAt: string | null;
   updatedAt: string;
 };
 
@@ -92,7 +92,7 @@ function _isCareCaseListItem(value: unknown): value is CareCaseListItem {
     && "status" in value && _isCareCaseStatus(value.status)
     && "priority" in value && _isCareCasePriority(value.priority)
     && "assignedAdminId" in value && (typeof value.assignedAdminId === "string" || value.assignedAdminId === null)
-    && "acceptedAt" in value && typeof value.acceptedAt === "string"
+    && "acceptedAt" in value && (typeof value.acceptedAt === "string" || value.acceptedAt === null)
     && "updatedAt" in value && typeof value.updatedAt === "string";
 }
 

@@ -191,7 +191,7 @@ export const careCases = pgTable(
     referralReceivedAt: timestamp("referral_received_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
-    acceptedAt: timestamp("accepted_at", { withTimezone: true }).defaultNow().notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

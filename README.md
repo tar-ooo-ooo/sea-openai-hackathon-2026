@@ -39,7 +39,7 @@ npm run dev:application
 
 後台工作台透過 `GET /api/admin/triages` 顯示 `emergency_triages` 的分流程度、原始訊息，並連結目前的使用者姓名、電話與地區；緊急優先、同程度依時間新至舊，僅專員可讀且不快取。既有資料若未保存原始訊息會明確標示；此表目前沒有處理狀態或被照顧者／申請關聯，不會自動配對申請。正式送出的申請則由 `application_packages` 與對應的 `care_cases` 提供給後台處理。
 
-後台首頁「申請資料列表」透過 `GET /api/admin/cases` 顯示已產生的 `application_packages`，不含尚未產生申請資料的收集中草稿。點選「查看完整明細」進入 `/cases/{caseId}`，透過專員 API 讀取摘要、服務需求及同一使用者的關聯 `application_intakes.data`（申請人、被照顧者、照顧狀況、補充資料、資格預檢及同意事項）。沒有關聯表單時明確提示；缺漏欄位顯示「尚未提供」。API 僅專員可讀，回應不快取。
+後台首頁「申請資料列表」只顯示已有 `application_packages` 且對應 `care_cases.status = new` 的待接案申請；專員按「開始接案」會更新既有 care case 為 `assessing`、認領承辦人並寫入接案時間，不會建立第二筆個案。開始處理後，案件會移至「正式申請案件」。點選「查看完整明細」仍可讀取申請摘要、服務需求及關聯表單內容。API 僅專員可讀，回應不快取。
 
 民眾在 application 確認送出時，API 會在同一批資料庫操作中建立 `application_packages`、服務需求與對應的 `care_cases`；新個案狀態為 `new`。`source_application_package_id` 是兩者的一對一關聯，唯一索引避免同一申請重複建立個案；migration `0005_backfill-care-cases.sql` 會為既有申請資料補齊個案。後台可查看完整申請，並由正式申請案件進入 Case 360 處理。
 
