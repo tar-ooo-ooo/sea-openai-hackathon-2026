@@ -14,6 +14,15 @@ export function shouldSendOnEnter(event: Pick<KeyboardEvent, "key" | "shiftKey" 
 export type ChatProgress = { id: string; label: string; status: "active" | "complete" };
 type ChatEvent = { type: "progress"; progress: ChatProgress } | { type: "result"; result: { reply: string; action?: ApplicationAction } };
 
+export function normalizeAssistantContent(content: string) {
+  return content
+    .replace(
+      /(?:\*\*)?已收整完成。(?:\*\*)?\s*Sol 已完成表單欄位分析，?\s*/g,
+      "資料已收整完成。",
+    )
+    .replace(/\*\*((?:資料)?已收整完成。)\*\*/g, "$1");
+}
+
 export function readHistory(value: unknown): ChatMessage[] {
   if (!value || typeof value !== "object" || !("messages" in value) || !Array.isArray(value.messages)) {
     throw new Error("Invalid history");
@@ -24,7 +33,11 @@ export function readHistory(value: unknown): ChatMessage[] {
       throw new Error("Invalid message");
     }
     const action = message.role === "assistant" && "action" in message ? _readAction(message.action) : undefined;
-    return { role: message.role, content: message.content, ...(action ? { action } : {}) };
+    return {
+      role: message.role,
+      content: message.role === "assistant" ? normalizeAssistantContent(message.content) : message.content,
+      ...(action ? { action } : {}),
+    };
   });
 }
 
@@ -43,7 +56,7 @@ export async function readChatStream(stream: ReadableStream<Uint8Array>, onEvent
       && "reply" in event.result && typeof event.result.reply === "string" && event.result.reply.trim()) {
       completed = true;
       const action = "action" in event.result ? _readAction(event.result.action) : undefined;
-      onEvent({ type: "result", result: { reply: event.result.reply, ...(action ? { action } : {}) } });
+      onEvent({ type: "result", result: { reply: normalizeAssistantContent(event.result.reply), ...(action ? { action } : {}) } });
       return;
     }
     if (event.type === "progress" && "progress" in event && event.progress && typeof event.progress === "object") {

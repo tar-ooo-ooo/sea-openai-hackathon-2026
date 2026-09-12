@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { Runner } from "@openai/agents";
 
 process.env.DATABASE_URL ??= "postgresql://test:test@localhost/test";
 
 const { db } = await import("../../services/db/client.ts");
 const {
   collectApplicationIntake,
+  getApplicationIntakeForReview,
+  prepareApplicationForm,
   submitApplicationIntake,
   updateApplicationPackage,
 } = await import("./collect-application-intake.ts");
@@ -51,6 +54,62 @@ test("收整完成只回傳 ready，不建立禮包", async (context) => {
   assert.equal(packageCreated, false);
 });
 
+test("資料完整後由 Sol 選擇可預填欄位並排除未允許欄位", async (context) => {
+  let savedReview;
+  context.mock.method(db, "select", () => ({
+    from: () => ({
+      where: () => ({
+        limit: async () => [{ id: _intakeId, data: _completeData, status: "collecting" }],
+      }),
+    }),
+  }));
+  context.mock.method(db, "update", () => ({
+    set: (values) => {
+      savedReview = values.formReview;
+      return { where: () => ({ returning: async () => [{}] }) };
+    },
+  }));
+  context.mock.method(Runner.prototype, "run", async () => ({
+    finalOutput: {
+      prefillFields: [
+        "jurisdiction",
+        "recipient.name",
+        "consent.privacyAccepted",
+        "unknown.field",
+      ],
+    },
+  }));
+
+  const result = await prepareApplicationForm(_userId, _intakeId);
+
+  assert.deepEqual(savedReview, { prefillFields: ["jurisdiction", "recipient.name"] });
+  assert.deepEqual(result, {
+    status: "ready",
+    missingFields: [],
+    formReview: { prefillFields: ["jurisdiction", "recipient.name"] },
+  });
+});
+
+test("申請頁只取得 Sol 核准預填的欄位", async (context) => {
+  context.mock.method(db, "select", () => ({
+    from: () => ({
+      where: () => ({
+        limit: async () => [{
+          id: _intakeId,
+          data: _completeData,
+          status: "collecting",
+          formReview: { prefillFields: ["jurisdiction", "recipient.name"] },
+        }],
+      }),
+    }),
+  }));
+
+  assert.deepEqual(await getApplicationIntakeForReview(_userId, _intakeId), {
+    id: _intakeId,
+    data: { jurisdiction: "臺北市", recipient: { name: "被照顧者" } },
+  });
+});
+
 test("使用者送出前重新驗證並合併 DB 內的完整資料", async (context) => {
   let packageCreated = false;
   context.mock.method(db, "select", () => ({
@@ -63,6 +122,9 @@ test("使用者送出前重新驗證並合併 DB 內的完整資料", async (con
   context.mock.method(db, "batch", async (queries) => {
     packageCreated = true;
     assert.match(JSON.stringify(queries[2].toSQL().params), /繼續在家生活/);
+    assert.match(queries[3].toSQL().sql, /insert into "care_cases"/i);
+    assert.match(JSON.stringify(queries[3].toSQL().params), /被照顧者/);
+    assert.equal(queries[3].toSQL().params.includes("new"), true);
   });
 
   const result = await submitApplicationIntake(_userId, _intakeId, {

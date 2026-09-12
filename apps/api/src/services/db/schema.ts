@@ -13,7 +13,10 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import type { ApplicationIntakeData } from "../../types/application-intake.ts";
+import type {
+  ApplicationFormReview,
+  ApplicationIntakeData,
+} from "../../types/application-intake.ts";
 
 export const chatRole = pgEnum("chat_role", ["assistant", "user"]);
 export const userRole = pgEnum("user_role", ["user", "admin"]);
@@ -156,6 +159,7 @@ export const applicationIntakes = pgTable(
       .$type<ApplicationIntakeData>()
       .default(sql`'{}'::jsonb`)
       .notNull(),
+    formReview: jsonb("form_review").$type<ApplicationFormReview>(),
     applicationPackageId: uuid("application_package_id").references(
       () => applicationPackages.id,
       { onDelete: "set null" },

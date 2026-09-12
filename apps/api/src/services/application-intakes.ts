@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import type {
+  ApplicationFormReview,
   ApplicationIntakeData,
   ApplicationServiceOption,
 } from "../types/application-intake.ts";
@@ -9,6 +10,7 @@ import {
   applicationIntakes,
   applicationPackages,
   applicationServices,
+  careCases,
 } from "./db/schema.ts";
 
 export async function findCollectingApplicationIntake(userId: string) {
@@ -57,7 +59,20 @@ export async function updateApplicationIntake(
 ) {
   const [intake] = await db
     .update(applicationIntakes)
-    .set({ data, updatedAt: new Date() })
+    .set({ data, formReview: null, updatedAt: new Date() })
+    .where(and(eq(applicationIntakes.id, id), eq(applicationIntakes.userId, userId)))
+    .returning();
+  return intake;
+}
+
+export async function saveApplicationFormReview(
+  id: string,
+  userId: string,
+  formReview: ApplicationFormReview,
+) {
+  const [intake] = await db
+    .update(applicationIntakes)
+    .set({ formReview, updatedAt: new Date() })
     .where(and(eq(applicationIntakes.id, id), eq(applicationIntakes.userId, userId)))
     .returning();
   return intake;
@@ -108,6 +123,15 @@ export async function createApplicationPackage(input: {
           eq(applicationIntakes.userId, input.userId),
         ),
       ),
+    db.insert(careCases).values({
+      sourceApplicationPackageId: packageId,
+      familyUserId: input.userId,
+      recipientName: input.targetName,
+      recipientBirthDate: input.data.recipient?.birthDate,
+      area: input.data.jurisdiction,
+      referralSummary: input.summary,
+      status: "new",
+    }),
   ]);
   return packageId;
 }

@@ -13,6 +13,15 @@ function _formatDate(value: string) {
   }).format(new Date(value));
 }
 
+const _stageLabel: Record<CareCaseListItem["status"], string> = {
+  new: "已收件",
+  assessing: "評估中",
+  plan_review: "計畫審核",
+  matching: "媒合中",
+  following_up: "追蹤中",
+  closed: "已結案",
+};
+
 export default async function Home() {
   const session = (await cookies()).get("care_admin_session");
   let careCases: CareCaseListItem[] = [];
@@ -79,13 +88,13 @@ export default async function Home() {
           </div>
           {!hasApplicationError && <span>{applications.length} 筆</span>}
         </div>
-        <p className="case-detail-note">目前顯示已產生的申請資料，不含收集中草稿。正式送出標記尚待串接，以下資料皆為「送出狀態待確認」，僅供檢視，尚不能接案。</p>
+        <p className="case-detail-note">顯示民眾確認送出後產生的申請資料；可查看完整表單，並由下方正式申請案件進入 Case 360 處理。</p>
         {hasApplicationError ? <p className="empty-state">暫時無法取得申請資料，請重新整理。</p>
           : applications.length === 0 ? <p className="empty-state">目前沒有已產生的申請資料。</p>
             : <div className="inbox-list">{applications.map((application) => (
               <article className="inbox-card" key={application.id}>
                 <div className="inbox-content">
-                  <div className="item-meta"><span className="status-tag status-referral">送出狀態待確認</span><span>資料更新：{_formatDate(application.updatedAt)}</span></div>
+                  <div className="item-meta"><span className="status-tag status-referral">已送出</span><span>資料更新：{_formatDate(application.updatedAt)}</span></div>
                   <h3>{application.targetName}</h3>
                   <p>{application.summary}</p>
                   <p className="case-service-count">服務需求：{application.serviceCount} 項</p>
@@ -94,24 +103,23 @@ export default async function Home() {
               </article>
             ))}</div>}
       </section>
-
       <section className="content-section" aria-labelledby="care-cases-heading">
         <div className="section-heading">
           <div>
             <p className="eyebrow">FORMAL CARE CASES</p>
-            <h2 id="care-cases-heading">已接案個案</h2>
+            <h2 id="care-cases-heading">正式申請案件</h2>
           </div>
           {!hasServiceError && <span>{careCases.length} 件</span>}
         </div>
         {hasServiceError ? <p className="empty-state">暫時無法取得正式個案資料。</p>
-          : careCases.length === 0 ? <p className="empty-state">目前沒有已接案個案。正式申請收件啟用後，才能新增接案。</p>
+          : careCases.length === 0 ? <p className="empty-state">目前沒有已送出的正式申請案件。</p>
             : <div className="inbox-list">{careCases.map((careCase) => (
               <article className="inbox-card" key={careCase.id}>
                 <div className="priority-mark priority-medium" aria-hidden="true" />
                 <div className="inbox-content">
-                  <div className="item-meta"><span className="status-tag status-review">{careCase.status}</span><span>{_formatDate(careCase.updatedAt)}</span></div>
+                  <div className="item-meta"><span className="status-tag status-review">{_stageLabel[careCase.status]}</span><span>{_formatDate(careCase.updatedAt)}</span></div>
                   <h3>{careCase.recipientName}</h3><p>{careCase.referralSummary}</p>
-                  <p className="case-service-count">{careCase.sourceApplicationPackageId ? "既有個案 · 聊天需求來源（非正式申請送出）" : "既有個案 · 來源待確認"}</p>
+                  <p className="case-service-count">{careCase.sourceApplicationPackageId ? "正式申請來源" : "既有案件 · 來源待確認"}</p>
                 </div>
                 <Link className="text-link" href={`/care-cases/${careCase.id}`}>開啟 Case 360<span aria-hidden="true">→</span></Link>
               </article>

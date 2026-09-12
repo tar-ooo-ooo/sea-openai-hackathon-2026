@@ -1,5 +1,5 @@
 import { and, asc, desc, eq } from "drizzle-orm";
-import { applicationIntakes, applicationPackages, applicationServices } from "./db/schema.ts";
+import { applicationIntakes, applicationPackages, applicationServices, careCases } from "./db/schema.ts";
 
 export async function listUserCaseRows(userId: string, id?: string) {
   const { db } = await import("./db/client.ts");
@@ -12,6 +12,7 @@ export async function listUserCaseRows(userId: string, id?: string) {
       id: applicationPackages.id, targetName: applicationPackages.targetName,
       summary: applicationPackages.summary, createdAt: applicationPackages.createdAt,
       updatedAt: applicationPackages.updatedAt,
+      caseStatus: careCases.status,
       service: {
         id: applicationServices.id, position: applicationServices.position,
         category: applicationServices.category, name: applicationServices.name,
@@ -19,6 +20,7 @@ export async function listUserCaseRows(userId: string, id?: string) {
       },
     }).from(applicationPackages)
       .leftJoin(applicationServices, eq(applicationServices.applicationPackageId, applicationPackages.id))
+      .leftJoin(careCases, eq(careCases.sourceApplicationPackageId, applicationPackages.id))
       .where(and(eq(applicationPackages.userId, userId), id ? eq(applicationPackages.id, id) : undefined))
       .orderBy(desc(applicationPackages.updatedAt), desc(applicationPackages.id), asc(applicationServices.position)),
   ]);

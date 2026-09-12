@@ -29,6 +29,20 @@
       "when": 1789194614878,
       "tag": "0003_happy_sheva_callister",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789200550691,
+      "tag": "0004_last_gambit",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789201837138,
+      "tag": "0005_backfill-care-cases",
+      "breakpoints": true
     }
   ]
 }
