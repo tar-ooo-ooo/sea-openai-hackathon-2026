@@ -69,6 +69,9 @@ input { width: 100%; min-height: 48px; border: 1px solid #cdd8d0; border-radius:
 .logout-button { background: none; border: 0; padding: 12px 0; color: var(--muted); font-size: 14px; }
 .member-header { padding: 23px 40px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; background: #fff; }
 .member-label { color: var(--green); }
+.member-account { display: flex; align-items: center; gap: 10px; position: relative; }
+.member-profile-link { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; margin-block: -9px; border-radius: 50%; color: var(--green); }
+.member-profile-link:hover { background: #eaf0e5; }
 .member-content { max-width: 1180px; margin: auto; padding: 52px; }
 .member-content h1 { font-size: 32px; margin-bottom: 12px; }
 .welcome-panel { display: flex; justify-content: space-between; align-items: center; gap: 30px; padding: 36px; border-radius: 18px; background: #eaf0e5; }

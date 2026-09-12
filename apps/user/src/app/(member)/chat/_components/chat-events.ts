@@ -1,9 +1,18 @@
-export type ChatMessage = { role: "user" | "assistant"; content: string };
+export type ApplicationAction = { type: "application_review"; caseId: string };
+export type ChatMessage = { role: "user" | "assistant"; content: string; action?: ApplicationAction };
+
+// 動作是可選的附加資訊；不合法時保留文字，不產生可操作入口。
+function _readAction(value: unknown): ApplicationAction | undefined {
+  if (!value || typeof value !== "object" || !("type" in value) || value.type !== "application_review"
+    || !("caseId" in value) || typeof value.caseId !== "string"
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.caseId)) return undefined;
+  return { type: "application_review", caseId: value.caseId.toLowerCase() };
+}
 export function shouldSendOnEnter(event: Pick<KeyboardEvent, "key" | "shiftKey" | "metaKey" | "isComposing" | "keyCode">): boolean {
   return event.key === "Enter" && !event.shiftKey && !event.metaKey && !event.isComposing && event.keyCode !== 229;
 }
 export type ChatProgress = { id: string; label: string; status: "active" | "complete" };
-type ChatEvent = { type: "progress"; progress: ChatProgress } | { type: "result"; result: { reply: string } };
+type ChatEvent = { type: "progress"; progress: ChatProgress } | { type: "result"; result: { reply: string; action?: ApplicationAction } };
 
 export function readHistory(value: unknown): ChatMessage[] {
   if (!value || typeof value !== "object" || !("messages" in value) || !Array.isArray(value.messages)) {
@@ -14,7 +23,8 @@ export function readHistory(value: unknown): ChatMessage[] {
       || (message.role !== "user" && message.role !== "assistant") || typeof message.content !== "string") {
       throw new Error("Invalid message");
     }
-    return { role: message.role, content: message.content };
+    const action = message.role === "assistant" && "action" in message ? _readAction(message.action) : undefined;
+    return { role: message.role, content: message.content, ...(action ? { action } : {}) };
   });
 }
 
@@ -32,7 +42,8 @@ export async function readChatStream(stream: ReadableStream<Uint8Array>, onEvent
     if (event.type === "result" && "result" in event && event.result && typeof event.result === "object"
       && "reply" in event.result && typeof event.result.reply === "string" && event.result.reply.trim()) {
       completed = true;
-      onEvent({ type: "result", result: { reply: event.result.reply } });
+      const action = "action" in event.result ? _readAction(event.result.action) : undefined;
+      onEvent({ type: "result", result: { reply: event.result.reply, ...(action ? { action } : {}) } });
       return;
     }
     if (event.type === "progress" && "progress" in event && event.progress && typeof event.progress === "object") {

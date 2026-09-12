@@ -11,7 +11,7 @@ function _formatDate(value: string) {
   return new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-export default function CasesPanel({ detail }: { detail?: { id: string; kind: "case" | "draft" } }) {
+export default function CasesPanel({ detail, onReturnToChat }: { detail?: { id: string; kind: "case" | "draft" }; onReturnToChat?: () => void }) {
   const id = detail?.id;
   const kind = detail?.kind;
   const [data, setData] = useState<CaseData | null>(null);
@@ -46,12 +46,12 @@ export default function CasesPanel({ detail }: { detail?: { id: string; kind: "c
   }
 
   return <div className={styles.panel}>
-    {detail && <Link className="quiet-link" href="/cases">← 返回我的案件</Link>}
+    {detail && !onReturnToChat && <Link className="quiet-link" href="/cases">← 返回我的案件</Link>}
     <div className={styles.toolbar}><p className="muted">確認小幫手整理的需求、待補資訊與服務建議。</p><button className="button secondary" onClick={refresh} disabled={loading}>{loading ? "讀取中…" : "更新案件"}</button></div>
     <p className={styles.notice}>這裡是申請準備紀錄。建立案件或收到服務建議，不代表已向長照單位送出申請或取得核定。</p>
     {loading ? <section className="empty-state" role="status">正在讀取你的案件…</section>
       : error ? <section className="empty-state"><p role="alert">{error}</p><div className={styles.actions}><button className="button secondary" onClick={refresh}>重新讀取</button><Link href="/login" className="quiet-link">前往登入</Link></div></section>
-      : data && detail ? <>{data.drafts.map((item) => <CareReport key={item.id} item={item} />)}{data.cases.map((item) => <CareReport key={item.id} item={item} />)}</>
+      : data && detail ? <>{data.drafts.map((item) => <CareReport key={item.id} item={item} onReturnToChat={onReturnToChat} />)}{data.cases.map((item) => <CareReport key={item.id} item={item} onReturnToChat={onReturnToChat} />)}</>
       : data && <>
         {data.drafts.length === 0 && data.cases.length === 0 ? <section className="empty-state"><h2>目前還沒有申請準備紀錄</h2><p>先和智慧小幫手聊聊照顧需求，開始整理申請資料。</p><Link href="/chat" className="button primary">開始整理需求</Link></section> : null}
         {data.drafts.length > 0 && <section className={styles.section} aria-labelledby="drafts-title"><h2 id="drafts-title">資料收集中 <span className={styles.count}>{data.drafts.length}</span></h2>{data.drafts.map((draft) => <article className={styles.card} key={draft.id}>
