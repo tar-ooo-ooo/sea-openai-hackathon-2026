@@ -91,6 +91,24 @@ Schema 位於 `apps/api/src/services/db/schema.ts`，migration 位於 `drizzle/`
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
+### 建立本機後台專員帳號
+
+先完成 migration，並確認 `.env.local` 的 `DATABASE_URL` 指向本機開發／測試用資料庫。接著在 PowerShell 設定一次性的環境變數後執行：
+
+```powershell
+$env:ADMIN_NATIONAL_ID = "A123456789"
+$passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR((Read-Host "專員測試密碼" -AsSecureString))
+try {
+  $env:ADMIN_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+  npm run seed:admin
+} finally {
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
+  Remove-Item Env:ADMIN_NATIONAL_ID, Env:ADMIN_PASSWORD -ErrorAction SilentlyContinue
+}
+```
+
+此指令只會新增 `role = 'admin'` 的帳號，密碼以與登入流程相同的 scrypt 參數雜湊後寫入；若身分證字號已存在，會失敗且不更新既有帳號。請使用通過檢查碼的測試身分證字號，且不要在 shell history、`.env.local` 或版本控制中保存密碼。
+
 API 的 `dev:api`、`build:api`、`start:api` 與 Drizzle 都明確載入根目錄 `.env.local`；請在 repo 根目錄執行指令，不要另外維護 `apps/api/.env.local`。user／admin 不載入後端 secrets，也不可用 `NEXT_PUBLIC_` 暴露它們。
 
 修改環境變數後重新啟動 API。未設定 secret 或無法連線資料庫時，登入／註冊安全失敗，不會假裝成功。前台使用 `fetchApi` 搭配 `credentials: "include"`，不在瀏覽器儲存帳密或 token。
