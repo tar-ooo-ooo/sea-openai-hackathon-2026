@@ -77,7 +77,8 @@ test("申請 Agent 只收整資料，不提早建立正式案件", async (contex
   });
 
   assert.deepEqual(toolNames, ["collect_application_intake", "prepare_application_form"]);
-  assert.match(instructions, /Sol 已完成表單欄位分析/);
+  assert.match(instructions, /資料已收整完成，請檢視資料/);
+  assert.doesNotMatch(instructions, /告知 Sol|交由 Sol/);
   assert.match(instructions, /http:\/\/localhost:3003\/apply\/intake-a/);
   assert.match(instructions, /正式案件只能在使用者檢視並確認表單後建立/);
   assert.match(instructions, /申請長照服務：https:\/\/1966\.gov\.tw/);

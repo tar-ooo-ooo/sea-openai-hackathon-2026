@@ -23,7 +23,7 @@ test("案件 API 使用 session 身分、不快取並拒絕 query 冒用", async
 
 test("案件彙整服務、不遺失空案件，草稿不洩露身分證與聯絡資料", async () => {
   const date = new Date("2026-09-12T00:00:00Z");
-  const record = { id: "case-a", targetName: "測試對象", summary: "需要協助", createdAt: date, updatedAt: date };
+  const record = { id: "case-a", targetName: "測試對象", summary: "需要協助", caseStatus: "new", createdAt: date, updatedAt: date };
   const service = { id: "service-a", position: 0, category: "喘息服務", name: "喘息服務", reason: "照顧需求", status: "尚未申請" };
   const result = await listUserCases("user-a", async (id) => {
     assert.equal(id, "user-a");
@@ -33,6 +33,7 @@ test("案件彙整服務、不遺失空案件，草稿不洩露身分證與聯�
     };
   });
   assert.equal(result.cases.length, 2);
+  assert.equal(result.cases[0].caseStatus, "new");
   assert.deepEqual(result.cases[0].services.map((item) => item.position), [0, 1]);
   assert.deepEqual(result.cases[1].services, []);
   assert.equal(result.drafts[0].status, "collecting");

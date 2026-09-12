@@ -122,6 +122,9 @@ test("使用者送出前重新驗證並合併 DB 內的完整資料", async (con
   context.mock.method(db, "batch", async (queries) => {
     packageCreated = true;
     assert.match(JSON.stringify(queries[2].toSQL().params), /繼續在家生活/);
+    assert.match(queries[3].toSQL().sql, /insert into "care_cases"/i);
+    assert.match(JSON.stringify(queries[3].toSQL().params), /被照顧者/);
+    assert.equal(queries[3].toSQL().params.includes("new"), true);
   });
 
   const result = await submitApplicationIntake(_userId, _intakeId, {

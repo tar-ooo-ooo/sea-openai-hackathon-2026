@@ -37,7 +37,7 @@ const _openApiDocument = {
     "/api/application-intakes/{id}": {
       get: {
         tags: ["Applications"], summary: "讀取 Agent 已收整的申請草稿",
-        description: "只回傳登入使用者本人尚未正式送出的草稿；若已完成 Sol 表單分析，只包含核准預填的欄位，供申請頁檢視與修改。",
+        description: "只回傳登入使用者本人尚未正式送出的草稿；若已完成表單分析，只包含核准預填的欄位，供申請頁檢視與修改。",
         security: [{ userSession: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: {
@@ -518,10 +518,11 @@ const _openApiDocument = {
         },
       },
       UserCase: {
-        type: "object", required: ["id", "targetName", "summary", "createdAt", "updatedAt", "services"],
+        type: "object", required: ["id", "targetName", "summary", "caseStatus", "createdAt", "updatedAt", "services"],
         properties: {
           careOverview: { $ref: "#/components/schemas/CareOverview" },
           id: { type: "string", format: "uuid" }, targetName: { type: "string" }, summary: { type: "string" },
+          caseStatus: { type: ["string", "null"], enum: ["new", "assessing", "plan_review", "matching", "following_up", "closed", null] },
           createdAt: { type: "string", format: "date-time" }, updatedAt: { type: "string", format: "date-time" },
           services: { type: "array", items: {
             type: "object", required: ["id", "position", "category", "name", "reason", "status"],

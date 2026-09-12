@@ -92,9 +92,9 @@ export async function sendMessage(
         collect: (patch) =>
           collectApplicationIntake(intake.userId, intake.id, intake.data, patch),
         prepare: async () => {
-          onProgress?.({ id: "form", label: "Sol 正在分析表單欄位", status: "active" });
+          onProgress?.({ id: "form", label: "正在整理申請資料", status: "active" });
           const result = await prepareApplicationForm(intake.userId, intake.id);
-          onProgress?.({ id: "form", label: "Sol 已完成表單欄位分析", status: "complete" });
+          onProgress?.({ id: "form", label: "已完成申請資料整理", status: "complete" });
           return result;
         },
         update: (patch) => updateApplicationPackage(intake.userId, intake.id, patch),

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchApi } from "@/lib/fetch-api";
-import { readCaseData, readCaseDetail, type CaseData } from "./case-data";
+import { caseStatusLabel, readCaseData, readCaseDetail, type CaseData } from "./case-data";
 import styles from "./cases-panel.module.css";
 import CareReport from "./CareReport";
 
@@ -48,7 +48,7 @@ export default function CasesPanel({ detail, onReturnToChat }: { detail?: { id: 
   return <div className={styles.panel}>
     {detail && !onReturnToChat && <Link className="quiet-link" href="/cases">← 返回我的案件</Link>}
     <div className={styles.toolbar}><p className="muted">確認小幫手整理的需求、待補資訊與服務建議。</p><button className="button secondary" onClick={refresh} disabled={loading}>{loading ? "讀取中…" : "更新案件"}</button></div>
-    <p className={styles.notice}>這裡是申請準備紀錄。建立案件或收到服務建議，不代表已向長照單位送出申請或取得核定。</p>
+    <p className={styles.notice}>案件狀態表示本系統目前的處理進度，不代表長照資格、給付額度或服務已核定。</p>
     {loading ? <section className="empty-state" role="status">正在讀取你的案件…</section>
       : error ? <section className="empty-state"><p role="alert">{error}</p><div className={styles.actions}><button className="button secondary" onClick={refresh}>重新讀取</button><Link href="/login" className="quiet-link">前往登入</Link></div></section>
       : data && detail ? <>{data.drafts.map((item) => <CareReport key={item.id} item={item} onReturnToChat={onReturnToChat} />)}{data.cases.map((item) => <CareReport key={item.id} item={item} onReturnToChat={onReturnToChat} />)}</>
@@ -61,7 +61,7 @@ export default function CasesPanel({ detail, onReturnToChat }: { detail?: { id: 
           <p className={styles.meta}>尚待確認 {draft.missingFields.length} 項資訊 · 查看草稿 →</p>
         </article>)}</section>}
         {data.cases.length > 0 && <section className={styles.section} aria-labelledby="cases-title"><h2 id="cases-title">已建立案件 <span className={styles.count}>{data.cases.length}</span></h2>{data.cases.map((item) => <article className={styles.card} key={item.id}>
-          <div className={styles.cardHeading}><h3><Link className={styles.cardLink} href={`/cases/${item.id}`}>{item.targetName}</Link></h3><span className={styles.badge}>需求已整理</span></div>
+          <div className={styles.cardHeading}><h3><Link className={styles.cardLink} href={`/cases/${item.id}`}>{item.targetName}</Link></h3><span className={styles.badge}>{caseStatusLabel(item.caseStatus)}</span></div>
           <p className={styles.meta}>更新於 <time dateTime={item.updatedAt}>{_formatDate(item.updatedAt)}</time></p>
           <p className={styles.summary}>{item.summary}</p>
           <p className={styles.meta}>{item.services.length} 項服務建議 · 查看案件詳情 →</p>

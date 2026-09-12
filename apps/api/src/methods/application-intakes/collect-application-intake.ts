@@ -129,7 +129,7 @@ export async function prepareApplicationForm(
   const prefillFields = [...new Set(review.prefillFields)].filter((field) =>
     availableFieldSet.has(field),
   );
-  if (prefillFields.length === 0) throw new Error("Sol selected no form fields");
+  if (prefillFields.length === 0) throw new Error("Form review selected no fields");
 
   const formReview = { prefillFields };
   await saveApplicationFormReview(intake.id, userId, formReview);

@@ -10,6 +10,7 @@ import {
   applicationIntakes,
   applicationPackages,
   applicationServices,
+  careCases,
 } from "./db/schema.ts";
 
 export async function findCollectingApplicationIntake(userId: string) {
@@ -122,6 +123,15 @@ export async function createApplicationPackage(input: {
           eq(applicationIntakes.userId, input.userId),
         ),
       ),
+    db.insert(careCases).values({
+      sourceApplicationPackageId: packageId,
+      familyUserId: input.userId,
+      recipientName: input.targetName,
+      recipientBirthDate: input.data.recipient?.birthDate,
+      area: input.data.jurisdiction,
+      referralSummary: input.summary,
+      status: "new",
+    }),
   ]);
   return packageId;
 }
