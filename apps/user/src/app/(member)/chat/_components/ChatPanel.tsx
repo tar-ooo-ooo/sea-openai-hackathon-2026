@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Markdown from "react-markdown";
 import { fetchApi } from "@/lib/fetch-api";
 import { readChatStream, readHistory, shouldSendOnEnter, type ChatMessage, type ChatProgress } from "./chat-events";
 import styles from "./chat-panel.module.css";
@@ -86,7 +87,7 @@ export default function ChatPanel() {
     <div className={styles.messages} role="log" aria-label="聊天紀錄" aria-live="polite" aria-busy={loading}>
       <div className={styles.conversation}>
       {loading ? <p className="muted">正在載入聊天紀錄…</p> : messages.length === 0 && !needsReload ? <article className={styles.assistant} aria-label="智慧小幫手"><span className={styles.avatar} aria-hidden="true">✦</span><p className={styles.bubble}>你好！我是長照智慧小幫手。可以先說說目前遇到的照顧困難，我會協助你整理申請服務的下一步。</p></article> : null}
-      {messages.map((message, index) => <article key={index} className={message.role === "user" ? styles.user : styles.assistant} aria-label={message.role === "user" ? "你" : "智慧小幫手"}>{message.role === "assistant" && <span className={styles.avatar} aria-hidden="true">✦</span>}<p className={styles.bubble}>{message.content}</p></article>)}
+      {messages.map((message, index) => <article key={index} className={message.role === "user" ? styles.user : styles.assistant} aria-label={message.role === "user" ? "你" : "智慧小幫手"}>{message.role === "assistant" && <span className={styles.avatar} aria-hidden="true">✦</span>}{message.role === "assistant" ? <div className={styles.bubble}><Markdown>{message.content}</Markdown></div> : <p className={styles.bubble}>{message.content}</p>}</article>)}
       {sending && <div role="status" className={styles.assistant} aria-label="AI 正在整理回覆"><span className={styles.avatar} aria-hidden="true">✦</span><div className={styles.processing}><p>智慧小幫手正在協助你</p>{progress.length ? <ul>{progress.map((item) => <li key={item.id}><span aria-hidden="true">{item.status === "complete" ? "✓" : "◌"}</span>{item.label}</li>)}</ul> : <span>正在連線並準備資料…</span>}</div></div>}
       <div ref={end} />
       </div>

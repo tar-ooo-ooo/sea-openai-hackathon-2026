@@ -10,10 +10,10 @@ test("Chat Agent 同時取得摘要與近期訊息", async (context) => {
   context.mock.method(Runner.prototype, "run", async (agent, nextInput) => {
     instructions = agent.instructions;
     input = nextInput;
-    return { finalOutput: "完成" };
+    return { finalOutput: "已記錄您是**家屬代理**申請。\n- 在家中" };
   });
 
-  await runChatAgent(
+  const reply = await runChatAgent(
     "最新問題",
     undefined,
     [{ role: "user", content: "近期訊息" }],
@@ -22,6 +22,8 @@ test("Chat Agent 同時取得摘要與近期訊息", async (context) => {
 
   assert.match(input, /對話摘要：\n較舊對話摘要/);
   assert.match(input, /對話前文：\n使用者：近期訊息/);
+  assert.equal(reply, "已記錄您是**家屬代理**申請。\n- 在家中");
+  assert.match(instructions, /回覆使用繁體中文 Markdown/);
   assert.match(instructions, /長期照顧服務法：https:\/\/1966\.gov\.tw/);
   assert.match(instructions, /只有使用者明確詢問資料來源時/);
 });
