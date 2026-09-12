@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server.js";
 
-import { isAllowedOrigin } from "../../lib/allowed-origin";
+import { isAllowedAdminOrigin } from "../../lib/allowed-origin";
 import { authenticateAdmin, getCurrentAdmin } from "../../methods/user-auth";
 import { isValidNationalId, isValidPassword } from "../../methods/user-auth/credentials";
+import { adminSessionCookieName } from "./require-admin";
 
-const _cookieName = "care_admin_session";
 let _attempts = 0;
 let _windowStart = 0;
 
 export async function handleAdminAuth(request: NextRequest, action: string) {
   const origin = request.headers.get("origin");
-  const allowed = isAllowedOrigin(origin);
+  const allowed = isAllowedAdminOrigin(origin);
   const headers = new Headers({ "Cache-Control": "no-store" });
   const reply = (body: object, status = 200) => NextResponse.json(body, { status, headers });
 
@@ -21,7 +21,7 @@ export async function handleAdminAuth(request: NextRequest, action: string) {
 
   try {
     if (action === "session" && request.method === "GET") {
-      return reply({ admin: await getCurrentAdmin(request.cookies.get(_cookieName)?.value) });
+      return reply({ admin: await getCurrentAdmin(request.cookies.get(adminSessionCookieName)?.value) });
     }
     if (request.method !== "POST" || action === "session") {
       return reply({ error: "Method not allowed" }, 405);
@@ -37,7 +37,7 @@ export async function handleAdminAuth(request: NextRequest, action: string) {
     };
     if (action === "logout") {
       const response = reply({ ok: true });
-      response.cookies.set(_cookieName, "", { ...cookieOptions, maxAge: 0 });
+      response.cookies.set(adminSessionCookieName, "", { ...cookieOptions, maxAge: 0 });
       return response;
     }
 
@@ -87,7 +87,7 @@ export async function handleAdminAuth(request: NextRequest, action: string) {
     if (!result) return reply({ error: "Invalid administrator credentials" }, 401);
 
     const response = reply({ admin: result.user });
-    response.cookies.set(_cookieName, result.token, cookieOptions);
+    response.cookies.set(adminSessionCookieName, result.token, cookieOptions);
     return response;
   } catch {
     return reply({ error: "Authentication service is unavailable" }, 503);

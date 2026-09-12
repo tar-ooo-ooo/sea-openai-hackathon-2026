@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from "next/server.js";
 
-import { isAllowedOrigin } from "../../lib/allowed-origin.ts";
+import { requireAdmin } from "../admin-auth/require-admin.ts";
 import { getAdminCase, getAdminCases } from "../../methods/admin-cases/index.ts";
 import { isValidAdminCaseId } from "../../methods/admin-cases/validation.ts";
-import { getCurrentAdmin } from "../../methods/user-auth/index.ts";
-
-const _cookieName = "care_admin_session";
-
-async function _getAuthenticatedResponse(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  if (origin && !isAllowedOrigin(origin)) {
-    return NextResponse.json({ error: "Origin is not allowed" }, { status: 403 });
-  }
-
-  const admin = await getCurrentAdmin(request.cookies.get(_cookieName)?.value);
-  if (!admin) return NextResponse.json({ error: "Administrator authentication is required" }, { status: 401 });
-
-  return null;
-}
 
 export async function handleAdminCases(request: NextRequest) {
   if (request.method !== "GET") {
@@ -25,8 +10,8 @@ export async function handleAdminCases(request: NextRequest) {
   }
 
   try {
-    const authenticationError = await _getAuthenticatedResponse(request);
-    if (authenticationError) return authenticationError;
+    const authentication = await requireAdmin(request);
+    if ("response" in authentication) return authentication.response;
 
     return NextResponse.json({ cases: await getAdminCases() }, {
       headers: { "Cache-Control": "no-store" },
@@ -45,8 +30,8 @@ export async function handleAdminCase(request: NextRequest, caseId: string) {
   }
 
   try {
-    const authenticationError = await _getAuthenticatedResponse(request);
-    if (authenticationError) return authenticationError;
+    const authentication = await requireAdmin(request);
+    if ("response" in authentication) return authentication.response;
 
     const adminCase = await getAdminCase(caseId);
     if (!adminCase) return NextResponse.json({ error: "Case not found" }, { status: 404 });
