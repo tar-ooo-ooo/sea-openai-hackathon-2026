@@ -54,6 +54,29 @@ test("收整完成只回傳 ready，不建立禮包", async (context) => {
   assert.equal(packageCreated, false);
 });
 
+test("回答本人時改為本人申請且不再要求代辦同意", async (context) => {
+  let savedData;
+  context.mock.method(db, "update", () => ({
+    set: (values) => {
+      savedData = values.data;
+      return { where: () => ({ returning: async () => [{}] }) };
+    },
+  }));
+
+  const result = await collectApplicationIntake(
+    _userId,
+    _intakeId,
+    { applicantRole: "FAMILY_PROXY", consent: { proxyConfirmed: true } },
+    { applicant: { relationship: "本人" } },
+  );
+
+  assert.equal(savedData.applicantRole, "SELF");
+  assert.equal(savedData.applicant.relationship, undefined);
+  assert.equal(savedData.consent.proxyConfirmed, undefined);
+  assert.equal(result.missingFields.includes("申請人與被照顧者的關係"), false);
+  assert.equal(result.missingFields.includes("代理申請同意"), false);
+});
+
 test("資料完整後由 Sol 選擇可預填欄位並排除未允許欄位", async (context) => {
   let savedReview;
   context.mock.method(db, "select", () => ({

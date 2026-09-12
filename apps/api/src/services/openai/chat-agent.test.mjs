@@ -81,6 +81,7 @@ test("申請 Agent 只收整資料，不提早建立正式案件", async (contex
   assert.doesNotMatch(instructions, /告知 Sol|交由 Sol/);
   assert.match(instructions, /http:\/\/localhost:3003\/apply\/intake-a/);
   assert.match(instructions, /正式案件只能在使用者檢視並確認表單後建立/);
+  assert.match(instructions, /回答「本人」時，必須設定 applicantRole 為 SELF/);
   assert.match(instructions, /申請長照服務：https:\/\/1966\.gov\.tw/);
 });
 

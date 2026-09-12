@@ -22,7 +22,7 @@ function _mergeData(
   current: ApplicationIntakeData,
   patch: ApplicationIntakeData,
 ): ApplicationIntakeData {
-  return {
+  const data = {
     ...current,
     ...patch,
     applicant: { ...current.applicant, ...patch.applicant },
@@ -32,6 +32,12 @@ function _mergeData(
     consent: { ...current.consent, ...patch.consent },
     precheck: { ...current.precheck, ...patch.precheck },
   };
+  if (patch.applicant?.relationship?.trim() === "本人") data.applicantRole = "SELF";
+  if (data.applicantRole === "SELF") {
+    data.applicant.relationship = undefined;
+    data.consent.proxyConfirmed = undefined;
+  }
+  return data;
 }
 
 function _buildApplicationPackage(data: ApplicationIntakeData) {
