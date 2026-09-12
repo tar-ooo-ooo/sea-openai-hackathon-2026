@@ -1,5 +1,5 @@
 import { handleChat } from "../../functions/chat/handle-chat.ts";
 
-export function POST() {
-  return handleChat();
+export async function POST(request: Request) {
+  return handleChat(request);
 }
