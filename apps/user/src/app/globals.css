@@ -27,6 +27,7 @@ p { line-height: 1.85; }
 .landing-main { max-width: 1160px; margin: auto; padding: 50px 40px; }
 .hero { display: grid; grid-template-columns: 1.2fr 1fr; align-items: center; gap: 80px; padding: 25px 0 65px; }
 .hero .small { margin-top: 14px; }
+.hero-illustration { width: 100%; height: auto; border-radius: 24px 24px 24px 80px; margin-bottom: 26px; object-fit: cover; }
 .intro-note { padding: 42px; background: #eaf0e5; border-radius: 80px 18px 18px 18px; }
 .intro-note h2 { font-size: 30px; line-height: 1.8; }
 .intro-note p { color: #526456; }
@@ -38,9 +39,10 @@ p { line-height: 1.85; }
 .overview-grid p { color: var(--muted); font-size: 15px; }
 .public-footer { padding: 25px; border-top: 1px solid var(--line); text-align: center; color: var(--muted); font-size: 12px; }
 .auth-page { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
-.auth-story { background: #eaf0e5; padding: 42px max(40px, 5vw); display: flex; flex-direction: column; justify-content: space-between; gap: 50px; }
+.auth-story { background: #eaf0e5; padding: 30px max(40px, 5vw); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; }
 .auth-story h1 { font-size: clamp(29px, 3vw, 44px); }
 .story-steps { padding-left: 24px; line-height: 2.6; font-size: 15px; }
+.auth-illustration { width: 100%; max-width: 190px; height: auto; aspect-ratio: 1 / 1; align-self: center; border-radius: 24px 24px 24px 80px; object-fit: cover; }
 .auth-story > .small { color: #526456; }
 .auth-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 48px; gap: 30px; }
 .auth-form-wrap { width: 100%; max-width: 400px; }
@@ -76,7 +78,7 @@ input { width: 100%; min-height: 48px; border: 1px solid #cdd8d0; border-radius:
 .member-content h1 { font-size: 32px; margin-bottom: 12px; }
 .welcome-panel { display: flex; justify-content: space-between; align-items: center; gap: 30px; padding: 36px; border-radius: 18px; background: #eaf0e5; }
 .welcome-panel p { color: #526456; }
-.welcome-character { font-size: 90px; color: #9eb49a; padding: 0 32px; }
+.welcome-illustration { width: 160px; height: 160px; flex-shrink: 0; border-radius: 24px 24px 24px 80px; object-fit: cover; }
 .member-section { padding-top: 36px; }
 .member-section h2 { font-size: 20px; }
 .empty-state { margin-top: 32px; padding: 65px 30px; border: 1px dashed #ccd8cd; border-radius: 14px; text-align: center; background: white; }
