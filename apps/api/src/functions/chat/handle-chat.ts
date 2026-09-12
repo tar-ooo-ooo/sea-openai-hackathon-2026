@@ -1,5 +1,8 @@
 import { sendMessage } from "../../methods/chat/send-message.ts";
 
+const _streamContentType = "application/x-ndjson";
+const _serviceUnavailableMessage = "AI service is temporarily unavailable";
+
 async function _readMessage(request: Request): Promise<string | null> {
   try {
     const body = (await request.json()) as unknown;
@@ -20,7 +23,44 @@ async function _readMessage(request: Request): Promise<string | null> {
   }
 }
 
-export async function handleChat(request: Request): Promise<Response> {
+function _streamChat(message: string, send: typeof sendMessage): Response {
+  const encoder = new TextEncoder();
+  let isCancelled = false;
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const write = (event: unknown) => {
+        if (!isCancelled) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
+
+      try {
+        const reply = await send(message, (progress) => write({ type: "progress", progress }));
+
+        write({ type: "result", result: { reply } });
+      } catch {
+        write({ type: "error", error: _serviceUnavailableMessage });
+      } finally {
+        if (!isCancelled) controller.close();
+      }
+    },
+    cancel() {
+      isCancelled = true;
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Cache-Control": "no-cache, no-transform",
+      "Content-Type": `${_streamContentType}; charset=utf-8`,
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+export async function handleChat(
+  request: Request,
+  send: typeof sendMessage = sendMessage,
+): Promise<Response> {
   const message = await _readMessage(request);
 
   if (!message) {
@@ -31,9 +71,13 @@ export async function handleChat(request: Request): Promise<Response> {
     return Response.json({ error: "AI service is not configured" }, { status: 503 });
   }
 
+  if (request.headers.get("accept")?.includes(_streamContentType)) {
+    return _streamChat(message, send);
+  }
+
   try {
-    return Response.json({ reply: await sendMessage(message) });
+    return Response.json({ reply: await send(message) });
   } catch {
-    return Response.json({ error: "AI service is temporarily unavailable" }, { status: 502 });
+    return Response.json({ error: _serviceUnavailableMessage }, { status: 502 });
   }
 }

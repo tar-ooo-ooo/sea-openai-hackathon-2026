@@ -31,3 +31,32 @@ test("handleChat 未設定 API key 時不呼叫 Agent", async () => {
 
   assert.equal(response.status, 503);
 });
+
+test("handleChat 以 NDJSON 回傳進度與結果", async () => {
+  process.env.OPENAI_API_KEY = "test-key";
+
+  try {
+    const response = await handleChat(new Request("http://localhost/chat", {
+      method: "POST",
+      headers: { Accept: "application/x-ndjson" },
+      body: JSON.stringify({ message: "你好" }),
+    }), async (message, onProgress) => {
+      assert.equal(message, "你好");
+      onProgress?.({ id: "analysis", label: "正在整理回覆", status: "active" });
+      return "OK";
+    });
+    const events = (await response.text()).trim().split("\n").map(JSON.parse);
+
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /^application\/x-ndjson/);
+    assert.deepEqual(events, [
+      {
+        type: "progress",
+        progress: { id: "analysis", label: "正在整理回覆", status: "active" },
+      },
+      { type: "result", result: { reply: "OK" } },
+    ]);
+  } finally {
+    delete process.env.OPENAI_API_KEY;
+  }
+});

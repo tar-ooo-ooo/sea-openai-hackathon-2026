@@ -33,7 +33,7 @@ npm run dev:api
 
 所有本機環境變數集中在專案根目錄 `.env.local`。使用資料庫前，請將其中的 `DATABASE_URL` 換成 Neon pooled connection string。兩個前端透過共用 `fetchApi` 呼叫 `http://localhost:3002`。
 
-`POST /chat` 接受 `{ "message": "..." }`，並透過 OpenAI Agents SDK 回傳 `{ "reply": "..." }`。使用前須在根目錄 `.env.local` 設定 server-only `OPENAI_API_KEY`。
+`POST /chat` 接受 `{ "message": "..." }`。帶上 `Accept: application/x-ndjson` 時，透過 OpenAI Agents SDK 逐行回傳 `progress`、`result` 或 `error` 事件；未指定時維持 `{ "reply": "..." }` JSON。使用前須在根目錄 `.env.local` 設定 server-only `OPENAI_API_KEY`。
 
 清空所有 `public` 資料表資料時，呼叫 `POST /api/database/clear`。此 API 保留資料表與 Drizzle migration 紀錄。
 
