@@ -233,6 +233,7 @@ function _validateUser() {}
 - Props 與外部資料必須有明確型別；避免 `any`，必要時用 `unknown` 並先縮窄型別。
 - 在資料邊界處驗證輸入；不要信任 URL params、form data、headers 或 API response。
 - Server Actions 與 Route Handlers 必須處理失敗情況，且不得把 secrets 傳到 Client Components。
+- 新增、修改或移除 API 時，必須同步更新 `/api/openapi` 的 OpenAPI 規格，確保 `/api/docs` Swagger UI 與實際行為一致。
 - 優先使用語意化 HTML，保留鍵盤操作、label、alt text 與可見 focus 樣式。
 - 非必要不要新增全域 state；先用 server state、URL state 或局部 React state。
 - 不做 speculative optimization；有量測結果再加 cache、memoization 或 virtualization。
