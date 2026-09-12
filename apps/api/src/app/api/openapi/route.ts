@@ -144,7 +144,7 @@ const _openApiDocument = {
       post: {
         tags: ["Chat"],
         summary: "與長照 Agent 對話",
-        description: "userId 必須與登入 cookie 內的使用者一致。設定 Accept: application/x-ndjson 可逐行接收 progress、result 或 error 事件。",
+        description: "userId 必須與登入 cookie 內的使用者一致。明確要求忽略既有指令、冒充 system/developer 或洩漏提示詞的訊息會以 400 拒絕。設定 Accept: application/x-ndjson 可逐行接收 progress、result 或 error 事件。",
         security: [{ userSession: [] }],
         requestBody: {
           required: true,
