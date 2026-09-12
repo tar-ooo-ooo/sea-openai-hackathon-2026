@@ -72,15 +72,15 @@ export async function getCareCase(careCaseId: string): Promise<CareCaseDetail | 
 
   return {
     ..._toCareCaseListItem(careCase),
-    latestAssessment: latestAssessment && {
+    latestAssessment: latestAssessment ? {
       ...latestAssessment,
       assessedAt: latestAssessment.assessedAt.toISOString(),
-    },
-    latestCareState: latestCareState && {
+    } : null,
+    latestCareState: latestCareState ? {
       ...latestCareState,
       observedAt: latestCareState.observedAt.toISOString(),
-    },
-    currentPlan: latestCarePlan && { ...latestCarePlan, items: planItems },
+    } : null,
+    currentPlan: latestCarePlan ? { ...latestCarePlan, items: planItems } : null,
     events: events.map((event) => ({ ...event, occurredAt: event.occurredAt.toISOString() })),
     actionItems: actionItems.map((item) => ({
       ...item,
