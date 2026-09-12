@@ -1,16 +1,68 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, eq, gt, or } from "drizzle-orm";
 import { db } from "./db/client.ts";
-import { chatMessages } from "./db/schema.ts";
+import { chatMessages, chatSummaries } from "./db/schema.ts";
 
-export async function listRecentChatMessages(userId: string) {
+export async function getChatSummary(userId: string) {
+  const [summary] = await db
+    .select({
+      summary: chatSummaries.summary,
+      lastMessageId: chatSummaries.lastMessageId,
+      lastMessageCreatedAt: chatSummaries.lastMessageCreatedAt,
+    })
+    .from(chatSummaries)
+    .where(eq(chatSummaries.userId, userId))
+    .limit(1);
+
+  return summary;
+}
+
+export async function listChatMessagesAfter(
+  userId: string,
+  cursor?: { id: string; createdAt: Date },
+) {
+  const afterCursor = cursor
+    ? or(
+        gt(chatMessages.createdAt, cursor.createdAt),
+        and(eq(chatMessages.createdAt, cursor.createdAt), gt(chatMessages.id, cursor.id)),
+      )
+    : undefined;
   const messages = await db
-    .select({ role: chatMessages.role, content: chatMessages.content })
+    .select({
+      id: chatMessages.id,
+      role: chatMessages.role,
+      content: chatMessages.content,
+      createdAt: chatMessages.createdAt,
+    })
     .from(chatMessages)
-    .where(eq(chatMessages.userId, userId))
-    .orderBy(desc(chatMessages.createdAt))
+    .where(and(eq(chatMessages.userId, userId), afterCursor))
+    .orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))
     .limit(100);
 
-  return messages.reverse();
+  return messages;
+}
+
+export async function saveChatSummary(
+  userId: string,
+  summary: string,
+  lastMessage: { id: string; createdAt: Date },
+) {
+  await db
+    .insert(chatSummaries)
+    .values({
+      userId,
+      summary,
+      lastMessageId: lastMessage.id,
+      lastMessageCreatedAt: lastMessage.createdAt,
+    })
+    .onConflictDoUpdate({
+      target: chatSummaries.userId,
+      set: {
+        summary,
+        lastMessageId: lastMessage.id,
+        lastMessageCreatedAt: lastMessage.createdAt,
+        updatedAt: new Date(),
+      },
+    });
 }
 
 export async function saveChatMessage(

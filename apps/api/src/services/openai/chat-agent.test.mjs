@@ -2,7 +2,41 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Runner } from "@openai/agents";
 
-import { runChatAgent } from "./chat-agent.ts";
+import { runChatAgent, summarizeChatHistory } from "./chat-agent.ts";
+
+test("Chat Agent 同時取得摘要與近期訊息", async (context) => {
+  let input = "";
+  context.mock.method(Runner.prototype, "run", async (_agent, nextInput) => {
+    input = nextInput;
+    return { finalOutput: "完成" };
+  });
+
+  await runChatAgent(
+    "最新問題",
+    undefined,
+    [{ role: "user", content: "近期訊息" }],
+    "較舊對話摘要",
+  );
+
+  assert.match(input, /對話摘要：\n較舊對話摘要/);
+  assert.match(input, /對話前文：\n使用者：近期訊息/);
+});
+
+test("摘要 Agent 合併既有摘要與較舊訊息", async (context) => {
+  let input = "";
+  context.mock.method(Runner.prototype, "run", async (_agent, nextInput) => {
+    input = nextInput;
+    return { finalOutput: "合併後摘要" };
+  });
+
+  const summary = await summarizeChatHistory("既有摘要", [
+    { role: "assistant", content: "較舊回覆" },
+  ]);
+
+  assert.equal(summary, "合併後摘要");
+  assert.match(input, /既有摘要：\n既有摘要/);
+  assert.match(input, /較舊對話：\n助手：較舊回覆/);
+});
 
 test("申請 Agent 提供收整與產生禮包兩個 tools", async (context) => {
   let toolNames = [];

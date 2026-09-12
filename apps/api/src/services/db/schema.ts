@@ -140,6 +140,20 @@ export const chatMessages = pgTable(
   ],
 );
 
+export const chatSummaries = pgTable(
+  "chat_summaries",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    summary: text("summary").notNull(),
+    lastMessageId: uuid("last_message_id").notNull(),
+    lastMessageCreatedAt: timestamp("last_message_created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [check("chat_summaries_summary_check", sql`char_length(${table.summary}) > 0`)],
+);
+
 export const emergencyTriages = pgTable(
   "emergency_triages",
   {

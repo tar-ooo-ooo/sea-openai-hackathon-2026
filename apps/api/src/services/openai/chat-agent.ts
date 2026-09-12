@@ -16,7 +16,24 @@ const _chatAgent = new Agent({
     store: false,
   },
 });
+const _chatSummaryAgent = new Agent({
+  name: "對話摘要助手",
+  instructions:
+    "請使用繁體中文，把既有摘要與較舊對話合併成精簡且可延續對話的摘要。保留使用者資料、偏好、已確認事實、申請進度、承諾及未解決事項；不要猜測或加入新資訊，只輸出摘要。",
+  model: "gpt-5.6-luna",
+  modelSettings: {
+    maxTokens: 2048,
+    reasoning: { effort: "none" },
+    store: false,
+  },
+});
 const _runner = new Runner({ tracingDisabled: true });
+
+function _formatHistory(history: Array<{ role: "assistant" | "user"; content: string }>) {
+  return history
+    .map(({ role, content }) => `${role === "user" ? "使用者" : "助手"}：${content}`)
+    .join("\n");
+}
 
 const _applicationPatchSchema = z.object({
   jurisdiction: z.string().optional(),
@@ -98,6 +115,7 @@ export async function runChatAgent(
     update: (patch: ApplicationIntakeData) => Promise<ApplicationIntakeProgress>;
   },
   history: Array<{ role: "assistant" | "user"; content: string }> = [],
+  summary = "",
 ): Promise<string> {
   const agent = application
     ? new Agent({
@@ -138,16 +156,32 @@ export async function runChatAgent(
               ],
       })
     : _chatAgent;
-  const transcript = history
-    .map(({ role, content }) => `${role === "user" ? "使用者" : "助手"}：${content}`)
-    .join("\n");
+  const transcript = _formatHistory(history);
+  const context = `${summary ? `對話摘要：\n${summary}\n` : ""}${transcript ? `對話前文：\n${transcript}\n` : ""}`;
   const input = application
-    ? `對話前文：\n${transcript || "（無）"}\n目前草稿：${JSON.stringify(application.data)}\n尚缺欄位：${application.missingFields.join("、")}\n選填欄位：${application.optionalFields.join("、")}\n使用者最新訊息：${message}`
-    : `${transcript ? `對話前文：\n${transcript}\n` : ""}使用者最新訊息：${message}`;
+    ? `${context || "對話前文：（無）\n"}目前草稿：${JSON.stringify(application.data)}\n尚缺欄位：${application.missingFields.join("、")}\n選填欄位：${application.optionalFields.join("、")}\n使用者最新訊息：${message}`
+    : `${context}使用者最新訊息：${message}`;
   const result = await _runner.run(agent, input, { maxTurns: application ? 3 : 2 });
 
   if (typeof result.finalOutput !== "string" || !result.finalOutput.trim()) {
     throw new Error("Agent returned an empty response");
+  }
+
+  return result.finalOutput.trim();
+}
+
+export async function summarizeChatHistory(
+  previousSummary: string,
+  history: Array<{ role: "assistant" | "user"; content: string }>,
+) {
+  const result = await _runner.run(
+    _chatSummaryAgent,
+    `既有摘要：\n${previousSummary || "（無）"}\n較舊對話：\n${_formatHistory(history)}`,
+    { maxTurns: 1 },
+  );
+
+  if (typeof result.finalOutput !== "string" || !result.finalOutput.trim()) {
+    throw new Error("Agent returned an empty summary");
   }
 
   return result.finalOutput.trim();

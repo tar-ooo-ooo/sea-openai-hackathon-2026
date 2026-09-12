@@ -1,9 +1,14 @@
-import { runChatAgent } from "../../services/openai/chat-agent.ts";
+import { runChatAgent, summarizeChatHistory } from "../../services/openai/chat-agent.ts";
 import {
   findCollectingApplicationIntake,
   findLatestPackagedApplicationIntake,
 } from "../../services/application-intakes.ts";
-import { listRecentChatMessages, saveChatMessage } from "../../services/chat-messages.ts";
+import {
+  getChatSummary,
+  listChatMessagesAfter,
+  saveChatMessage,
+  saveChatSummary,
+} from "../../services/chat-messages.ts";
 import {
   collectApplicationIntake,
   generateApplicationPackage,
@@ -14,6 +19,7 @@ import {
   getMissingApplicationFields,
   optionalApplicationFields,
 } from "../application-intakes/application-intake-rules.ts";
+import { partitionChatHistory } from "./chat-context.ts";
 
 export type ChatProgress = {
   id: string;
@@ -36,11 +42,33 @@ export async function sendMessage(
       message,
     );
 
-  const [existingIntake, packagedIntake, history] = await Promise.all([
+  const [existingIntake, packagedIntake, storedSummary] = await Promise.all([
     findCollectingApplicationIntake(userId),
     isPackageUpdateIntent ? findLatestPackagedApplicationIntake(userId) : undefined,
-    listRecentChatMessages(userId),
+    getChatSummary(userId),
   ]);
+  const unsummarizedMessages = await listChatMessagesAfter(
+    userId,
+    storedSummary
+      ? { id: storedSummary.lastMessageId, createdAt: storedSummary.lastMessageCreatedAt }
+      : undefined,
+  );
+  const { messagesToSummarize, recentMessages } = partitionChatHistory(unsummarizedMessages);
+  let summary = storedSummary?.summary ?? "";
+  let history = recentMessages;
+
+  if (messagesToSummarize.length > 0) {
+    try {
+      const nextSummary = await summarizeChatHistory(summary, messagesToSummarize);
+      const lastMessage = messagesToSummarize.at(-1)!;
+      await saveChatSummary(userId, nextSummary, lastMessage);
+      summary = nextSummary;
+    } catch {
+      history = unsummarizedMessages;
+    }
+    // ponytail: 若同一使用者需要高併發，再以 transaction 或 advisory lock 序列化摘要更新。
+  }
+
   await saveChatMessage(userId, "user", message);
   const intake =
     existingIntake ??
@@ -66,9 +94,10 @@ export async function sendMessage(
         update: (patch) => updateApplicationPackage(intake.userId, intake.id, patch),
       },
       history,
+      summary,
     );
   } else {
-    reply = await runChatAgent(message, undefined, history);
+    reply = await runChatAgent(message, undefined, history, summary);
   }
 
   await saveChatMessage(userId, "assistant", reply);

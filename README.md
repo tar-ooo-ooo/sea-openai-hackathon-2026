@@ -39,7 +39,7 @@ npm run dev:application
 
 所有本機環境變數集中在專案根目錄 `.env.local`。使用資料庫前，請將其中的 `DATABASE_URL` 換成 Neon pooled connection string。user 與 admin 透過共用 `fetchApi` 呼叫 `http://localhost:3002`；application 目前尚未串接 API。
 
-`POST /chat` 接受 `{ "message": "...", "userId": "使用者 UUID（必填）" }`，並驗證登入 cookie、使用者是否存在，以及 `userId` 是否屬於目前登入者。帶上 `Accept: application/x-ndjson` 時，透過 OpenAI Agents SDK 逐行回傳 `progress`、`result` 或 `error` 事件；未指定時維持 `{ "reply": "..." }` JSON。API 只讀寫該使用者最近 100 則 `chat_messages`；表示要申請長照時，Agent 會把資料收整到該使用者的 `application_intakes`，完整後產生 `application_packages` 與 `application_services`。使用前須在根目錄 `.env.local` 設定 server-only `OPENAI_API_KEY`。
+`POST /chat` 接受 `{ "message": "...", "userId": "使用者 UUID（必填）" }`，並驗證登入 cookie、使用者是否存在，以及 `userId` 是否屬於目前登入者。帶上 `Accept: application/x-ndjson` 時，透過 OpenAI Agents SDK 逐行回傳 `progress`、`result` 或 `error` 事件；未指定時維持 `{ "reply": "..." }` JSON。Agent 會使用該使用者的 `chat_summaries` 與尚未摘要的 `chat_messages`；未摘要訊息達 80 則時，會將較舊的 60 則合併進摘要並保留最近 20 則原文。表示要申請長照時，Agent 會把資料收整到該使用者的 `application_intakes`，完整後產生 `application_packages` 與 `application_services`。使用前須在根目錄 `.env.local` 設定 server-only `OPENAI_API_KEY`。
 
 啟動 API 後可開啟 Swagger UI：`http://localhost:3002/api/docs`；OpenAPI JSON 位於 `http://localhost:3002/api/openapi`。
 
@@ -53,7 +53,7 @@ npm run dev:application
 | `generate_application_package` | 收整結果為 `ready`，或本回合開始時已無缺少欄位 | 重新從 DB 讀取並驗證完整申請資料，建立 `application_packages` 與 `application_services`，再將 intake 標記為 `packaged`。 |
 | `update_application_package` | 使用者明確要求修改或更新既有長照服務方案 | 重新讀取該 user 最新的既有方案，只合併明確指定的變更，並同步更新 intake、方案摘要與服務清單。 |
 
-讀取最近 100 則對話、保存 user／assistant 訊息及依 `userId` 查詢草稿是 API method/service 的固定流程，不是交由 Agent 自行決定是否呼叫的 function tool。
+讀取摘要與近期對話、保存 user／assistant 訊息及依 `userId` 查詢草稿是 API method/service 的固定流程，不是交由 Agent 自行決定是否呼叫的 function tool。
 
 清空所有 `public` 資料表資料時，呼叫 `POST /api/database/clear`。此 API 保留資料表與 Drizzle migration 紀錄。
 
@@ -75,6 +75,7 @@ npm run db:migrate
 | `users` | 帳號、密碼雜湊與必填身份（`user`／`admin`） |
 | `profiles` | 使用者姓名、出生日期、地區與電話；每個帳號一筆 |
 | `chat_messages` | 使用者與 AI 的聊天紀錄，以及可選的申請流程連結 |
+| `chat_summaries` | 每位使用者一份滾動式對話摘要，以及摘要涵蓋到的最後訊息位置 |
 | `application_packages` | 每位使用者、每個照顧對象的申請案件與需求摘要 |
 | `application_services` | 案件內有順序的服務建議、原因及申請狀態 |
 | `application_intakes` | Agent 收整中的長照申請草稿；完整後連到產生的長照服務方案 |
