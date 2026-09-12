@@ -24,6 +24,27 @@ export async function findCollectingApplicationIntake(userId: string) {
   return intake;
 }
 
+export async function findLatestPackagedApplicationIntake(userId: string) {
+  const [intake] = await db
+    .select()
+    .from(applicationIntakes)
+    .where(and(eq(applicationIntakes.userId, userId), eq(applicationIntakes.status, "packaged")))
+    .orderBy(desc(applicationIntakes.updatedAt))
+    .limit(1);
+
+  return intake;
+}
+
+export async function findApplicationIntake(id: string, userId: string) {
+  const [intake] = await db
+    .select()
+    .from(applicationIntakes)
+    .where(and(eq(applicationIntakes.id, id), eq(applicationIntakes.userId, userId)))
+    .limit(1);
+
+  return intake;
+}
+
 export async function createApplicationIntake(userId: string) {
   const [intake] = await db.insert(applicationIntakes).values({ userId }).returning();
   return intake;
@@ -87,4 +108,64 @@ export async function createApplicationPackage(input: {
       ),
   ]);
   return packageId;
+}
+
+export async function replaceApplicationPackage(input: {
+  intakeId: string;
+  applicationPackageId: string;
+  userId: string;
+  data: ApplicationIntakeData;
+  targetName: string;
+  summary: string;
+  services: Array<{
+    category:
+      | "照顧及專業服務"
+      | "交通接送服務"
+      | "輔具及居家無障礙環境改善"
+      | "喘息服務";
+    name: ApplicationServiceOption;
+    reason: string;
+  }>;
+}) {
+  const existingServices = await db
+    .select({ name: applicationServices.name, status: applicationServices.status })
+    .from(applicationServices)
+    .where(eq(applicationServices.applicationPackageId, input.applicationPackageId));
+  const statusByName = new Map(existingServices.map(({ name, status }) => [name, status]));
+
+  await db.batch([
+    db
+      .update(applicationIntakes)
+      .set({ data: input.data, updatedAt: new Date() })
+      .where(
+        and(
+          eq(applicationIntakes.id, input.intakeId),
+          eq(applicationIntakes.userId, input.userId),
+        ),
+      ),
+    db
+      .update(applicationPackages)
+      .set({
+        targetName: input.targetName,
+        summary: input.summary,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(applicationPackages.id, input.applicationPackageId),
+          eq(applicationPackages.userId, input.userId),
+        ),
+      ),
+    db
+      .delete(applicationServices)
+      .where(eq(applicationServices.applicationPackageId, input.applicationPackageId)),
+    db.insert(applicationServices).values(
+      input.services.map((service, position) => ({
+        applicationPackageId: input.applicationPackageId,
+        position,
+        status: statusByName.get(service.name) ?? "尚未申請",
+        ...service,
+      })),
+    ),
+  ]);
 }

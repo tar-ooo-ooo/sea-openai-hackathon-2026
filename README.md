@@ -39,11 +39,13 @@ npm run dev:api
 
 ### Agent function tools
 
-目前只有申請資料收整 Agent 配置 function tool；一般問答 Agent 沒有 tools。
+目前只有申請資料收整 Agent 配置 function tools；一般問答 Agent 沒有 tools。
 
 | Tool | 觸發時機 | 用途與結果 |
 | --- | --- | --- |
-| `collect_application_intake` | 帶有有效 `userId`，且使用者表示要申請長照或已有收整中的草稿 | 將使用者明確提供的欄位合併到該 user 的 `application_intakes.data`。資料未齊時回傳 `collecting` 與缺少欄位；必填資料、同意與至少一項服務齊全後回傳 `packaged`，並建立 `application_packages` 與 `application_services`。 |
+| `collect_application_intake` | 使用者提供新的申請資料 | 將使用者明確提供的欄位合併到該 user 的 `application_intakes.data`；資料未齊時回傳 `collecting` 與缺少欄位，齊全時回傳 `ready`。 |
+| `generate_application_package` | 收整結果為 `ready`，或本回合開始時已無缺少欄位 | 重新從 DB 讀取並驗證完整申請資料，建立 `application_packages` 與 `application_services`，再將 intake 標記為 `packaged`。 |
+| `update_application_package` | 使用者明確要求修改或更新既有禮包／服務 | 重新讀取該 user 最新的既有禮包，只合併明確指定的變更，並同步更新 intake、禮包摘要與服務清單。 |
 
 讀取最近 20 則對話、保存 user／assistant 訊息及依 `userId` 查詢草稿是 API method/service 的固定流程，不是交由 Agent 自行決定是否呼叫的 function tool。
 

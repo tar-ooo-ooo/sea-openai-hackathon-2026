@@ -65,7 +65,7 @@ export type ApplicationIntakeData = {
 };
 
 export type ApplicationIntakeProgress = {
-  status: "collecting" | "packaged";
+  status: "collecting" | "ready" | "packaged";
   missingFields: string[];
   applicationPackageId?: string;
 };

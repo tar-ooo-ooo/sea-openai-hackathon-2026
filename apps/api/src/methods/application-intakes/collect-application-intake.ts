@@ -1,7 +1,9 @@
 import {
   createApplicationIntake,
   createApplicationPackage,
+  findApplicationIntake,
   findCollectingApplicationIntake,
+  replaceApplicationPackage,
   updateApplicationIntake,
 } from "../../services/application-intakes.ts";
 import type {
@@ -26,6 +28,23 @@ function _mergeData(
   };
 }
 
+function _buildApplicationPackage(data: ApplicationIntakeData) {
+  const reason = `${data.careContext!.recentEvent}；${data.careContext!.goal}`.slice(0, 300);
+
+  return {
+    targetName: data.recipient!.name!.slice(0, 100),
+    summary: `目前狀況：${data.careContext!.recentEvent}；希望協助：${data.careContext!.goal}`.slice(
+      0,
+      500,
+    ),
+    services: data.intake!.requestedServices!.map((name) => ({
+      category: getServiceCategory(name),
+      name,
+      reason,
+    })),
+  };
+}
+
 export async function getOrCreateApplicationIntake(userId: string) {
   return (await findCollectingApplicationIntake(userId)) ?? createApplicationIntake(userId);
 }
@@ -40,24 +59,61 @@ export async function collectApplicationIntake(
   await updateApplicationIntake(intakeId, userId, data);
   const missingFields = getMissingApplicationFields(data);
 
+  return {
+    status: missingFields.length > 0 ? "collecting" : "ready",
+    missingFields,
+  };
+}
+
+export async function generateApplicationPackage(
+  userId: string,
+  intakeId: string,
+): Promise<ApplicationIntakeProgress> {
+  const intake = await findApplicationIntake(intakeId, userId);
+  if (!intake) throw new Error("Application intake not found");
+  if (intake.applicationPackageId) {
+    return {
+      status: "packaged",
+      missingFields: [],
+      applicationPackageId: intake.applicationPackageId,
+    };
+  }
+
+  const missingFields = getMissingApplicationFields(intake.data);
   if (missingFields.length > 0) return { status: "collecting", missingFields };
 
-  const requestedServices = data.intake!.requestedServices!;
-  const reason = `${data.careContext!.recentEvent}；${data.careContext!.goal}`.slice(0, 300);
   const packageId = await createApplicationPackage({
     intakeId,
     userId,
-    targetName: data.recipient!.name!.slice(0, 100),
-    summary: `目前狀況：${data.careContext!.recentEvent}；希望協助：${data.careContext!.goal}`.slice(
-      0,
-      500,
-    ),
-    services: requestedServices.map((name) => ({
-      category: getServiceCategory(name),
-      name,
-      reason,
-    })),
+    ..._buildApplicationPackage(intake.data),
   });
 
   return { status: "packaged", missingFields: [], applicationPackageId: packageId };
+}
+
+export async function updateApplicationPackage(
+  userId: string,
+  intakeId: string,
+  patch: ApplicationIntakeData,
+): Promise<ApplicationIntakeProgress> {
+  const intake = await findApplicationIntake(intakeId, userId);
+  if (!intake?.applicationPackageId) throw new Error("Application package not found");
+
+  const data = _mergeData(intake.data, patch);
+  const missingFields = getMissingApplicationFields(data);
+  if (missingFields.length > 0) return { status: "collecting", missingFields };
+
+  await replaceApplicationPackage({
+    intakeId,
+    applicationPackageId: intake.applicationPackageId,
+    userId,
+    data,
+    ..._buildApplicationPackage(data),
+  });
+
+  return {
+    status: "packaged",
+    missingFields: [],
+    applicationPackageId: intake.applicationPackageId,
+  };
 }

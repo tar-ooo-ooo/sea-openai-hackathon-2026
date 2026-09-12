@@ -89,31 +89,53 @@ const _applicationPatchSchema = z.object({
 export async function runChatAgent(
   message: string,
   application?: {
+    status: "collecting" | "packaged";
     data: ApplicationIntakeData;
     missingFields: string[];
     optionalFields: readonly string[];
     collect: (patch: ApplicationIntakeData) => Promise<ApplicationIntakeProgress>;
+    generate: () => Promise<ApplicationIntakeProgress>;
+    update: (patch: ApplicationIntakeData) => Promise<ApplicationIntakeProgress>;
   },
   history: Array<{ role: "assistant" | "user"; content: string }> = [],
 ): Promise<string> {
   const agent = application
     ? new Agent({
         name: "長照申請資料收整助手",
-        instructions: `你要協助使用者完成長照申請資料收整。根據目前草稿、missingFields 順序、對話前文與最新訊息，只把使用者明確提供的資料傳給 collect_application_intake，不可猜測。每回合最多呼叫一次工具。工具回傳 collecting 時，簡短確認後只詢問 missingFields 的第一個欄位；optionalFields 可收整但不阻擋大禮包。回傳 packaged 時，告知申請大禮包已建立。欲申請服務只能選：${applicationServiceOptions.join("、")}。`,
+        instructions:
+          application.status === "packaged"
+            ? `你要協助使用者修改既有長照服務禮包。只把使用者在最新訊息中明確要求變更的欄位傳給 update_application_package，不可猜測；未明確說明要改什麼時先詢問，不要呼叫工具。修改 requestedServices 時，必須根據目前草稿傳入變更後的完整服務清單，保留未要求移除的服務。每回合最多呼叫一次；回傳 packaged 時告知禮包已更新，回傳 collecting 時告知變更無效並只詢問第一個缺少欄位。欲申請服務只能選：${applicationServiceOptions.join("、")}。`
+            : `你要協助使用者完成長照申請資料收整。根據目前草稿、missingFields 順序、對話前文與最新訊息，只把使用者明確提供的資料傳給 collect_application_intake，不可猜測。collect_application_intake 回傳 collecting 時，簡短確認後只詢問 missingFields 的第一個欄位；回傳 ready 時，立即呼叫 generate_application_package。若本回合開始時 missingFields 已是空陣列，直接呼叫 generate_application_package。每個工具每回合最多呼叫一次。optionalFields 可收整但不阻擋大禮包。generate_application_package 只可在必填資料完整時呼叫；回傳 collecting 時只詢問第一個缺少欄位，回傳 packaged 時告知申請大禮包已建立。欲申請服務只能選：${applicationServiceOptions.join("、")}。`,
         model: "gpt-5.6-luna",
         modelSettings: {
           maxTokens: 1000,
           reasoning: { effort: "none" },
           store: false,
         },
-        tools: [
-          tool({
-            name: "collect_application_intake",
-            description: "保存使用者明確提供的長照申請資料；完整後會自動建立申請大禮包。",
-            parameters: _applicationPatchSchema,
-            execute: application.collect,
-          }),
-        ],
+        tools:
+          application.status === "packaged"
+            ? [
+                tool({
+                  name: "update_application_package",
+                  description: "依使用者明確指定的變更更新既有長照服務禮包。",
+                  parameters: _applicationPatchSchema,
+                  execute: application.update,
+                }),
+              ]
+            : [
+                tool({
+                  name: "collect_application_intake",
+                  description: "保存使用者明確提供的長照申請資料，並回傳尚缺欄位或 ready。",
+                  parameters: _applicationPatchSchema,
+                  execute: application.collect,
+                }),
+                tool({
+                  name: "generate_application_package",
+                  description: "僅在長照申請必填資料完整後，建立服務大禮包。",
+                  parameters: z.object({}),
+                  execute: application.generate,
+                }),
+              ],
       })
     : _chatAgent;
   const transcript = history
