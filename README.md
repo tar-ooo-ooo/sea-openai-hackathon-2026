@@ -51,7 +51,7 @@ npm run dev:application
 | --- | --- | --- |
 | `collect_application_intake` | 使用者提供新的申請資料 | 將使用者明確提供的欄位合併到該 user 的 `application_intakes.data`；資料未齊時回傳 `collecting` 與缺少欄位，齊全時回傳 `ready`。 |
 | `generate_application_package` | 收整結果為 `ready`，或本回合開始時已無缺少欄位 | 重新從 DB 讀取並驗證完整申請資料，建立 `application_packages` 與 `application_services`，再將 intake 標記為 `packaged`。 |
-| `update_application_package` | 使用者明確要求修改或更新既有禮包／服務 | 重新讀取該 user 最新的既有禮包，只合併明確指定的變更，並同步更新 intake、禮包摘要與服務清單。 |
+| `update_application_package` | 使用者明確要求修改或更新既有長照服務方案 | 重新讀取該 user 最新的既有方案，只合併明確指定的變更，並同步更新 intake、方案摘要與服務清單。 |
 
 讀取最近 20 則對話、保存 user／assistant 訊息及依 `userId` 查詢草稿是 API method/service 的固定流程，不是交由 Agent 自行決定是否呼叫的 function tool。
 
@@ -77,7 +77,7 @@ npm run db:migrate
 | `chat_messages` | 使用者與 AI 的聊天紀錄，以及可選的申請流程連結 |
 | `application_packages` | 每位使用者、每個照顧對象的申請案件與需求摘要 |
 | `application_services` | 案件內有順序的服務建議、原因及申請狀態 |
-| `application_intakes` | Agent 收整中的長照申請草稿；完整後連到產生的申請大禮包 |
+| `application_intakes` | Agent 收整中的長照申請草稿；完整後連到產生的長照服務方案 |
 | `emergency_triages` | `follow_up`／`emergency` 分流事件與時間，不保存原始健康描述 |
 
 Schema 位於 `apps/api/src/services/db/schema.ts`，migration 位於 `drizzle/`。確認 SQL 後以 `npm run db:migrate` 套用。
