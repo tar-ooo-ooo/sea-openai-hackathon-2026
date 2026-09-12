@@ -3,27 +3,40 @@ import { sendMessage } from "../../methods/chat/send-message.ts";
 const _streamContentType = "application/x-ndjson";
 const _serviceUnavailableMessage = "AI service is temporarily unavailable";
 
-async function _readMessage(request: Request): Promise<string | null> {
+type ChatInput = { message: string; userId?: string };
+
+async function _readInput(request: Request): Promise<ChatInput | null> {
   try {
     const body = (await request.json()) as unknown;
 
     if (!body || typeof body !== "object" || Array.isArray(body)) return null;
 
-    const message = (body as Record<string, unknown>).message;
+    const record = body as Record<string, unknown>;
+    const message = record.message;
+    const userId = record.userId;
 
     if (typeof message !== "string") return null;
+    if (
+      userId !== undefined &&
+      (typeof userId !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          userId,
+        ))
+    ) {
+      return null;
+    }
 
     const normalizedMessage = message.trim();
 
     return normalizedMessage.length > 0 && normalizedMessage.length <= 4000
-      ? normalizedMessage
+      ? { message: normalizedMessage, userId }
       : null;
   } catch {
     return null;
   }
 }
 
-function _streamChat(message: string, send: typeof sendMessage): Response {
+function _streamChat(input: ChatInput, send: typeof sendMessage): Response {
   const encoder = new TextEncoder();
   let isCancelled = false;
 
@@ -34,7 +47,11 @@ function _streamChat(message: string, send: typeof sendMessage): Response {
       };
 
       try {
-        const reply = await send(message, (progress) => write({ type: "progress", progress }));
+        const reply = await send(
+          input.message,
+          (progress) => write({ type: "progress", progress }),
+          input.userId,
+        );
 
         write({ type: "result", result: { reply } });
       } catch {
@@ -61,10 +78,13 @@ export async function handleChat(
   request: Request,
   send: typeof sendMessage = sendMessage,
 ): Promise<Response> {
-  const message = await _readMessage(request);
+  const input = await _readInput(request);
 
-  if (!message) {
-    return Response.json({ error: "message must contain 1 to 4000 characters" }, { status: 400 });
+  if (!input) {
+    return Response.json(
+      { error: "message must contain 1 to 4000 characters and userId must be a UUID" },
+      { status: 400 },
+    );
   }
 
   if (!process.env.OPENAI_API_KEY) {
@@ -72,11 +92,11 @@ export async function handleChat(
   }
 
   if (request.headers.get("accept")?.includes(_streamContentType)) {
-    return _streamChat(message, send);
+    return _streamChat(input, send);
   }
 
   try {
-    return Response.json({ reply: await send(message) });
+    return Response.json({ reply: await send(input.message, undefined, input.userId) });
   } catch {
     return Response.json({ error: _serviceUnavailableMessage }, { status: 502 });
   }

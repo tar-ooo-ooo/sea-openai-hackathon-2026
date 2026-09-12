@@ -1,4 +1,10 @@
-import { Agent, Runner } from "@openai/agents";
+import { Agent, Runner, tool } from "@openai/agents";
+import { z } from "zod";
+import {
+  applicationServiceOptions,
+  type ApplicationIntakeData,
+  type ApplicationIntakeProgress,
+} from "../../types/application-intake.ts";
 
 const _chatAgent = new Agent({
   name: "長照服務助手",
@@ -12,8 +18,111 @@ const _chatAgent = new Agent({
 });
 const _runner = new Runner({ tracingDisabled: true });
 
-export async function runChatAgent(message: string): Promise<string> {
-  const result = await _runner.run(_chatAgent, message, { maxTurns: 2 });
+const _applicationPatchSchema = z.object({
+  jurisdiction: z.string().optional(),
+  applicantRole: z
+    .enum(["SELF", "FAMILY_PROXY", "PROFESSIONAL_PROXY", "OTHER_PROXY"])
+    .optional(),
+  currentSituation: z.enum(["HOME", "HOSPITAL_DISCHARGE", "INSTITUTION", "OTHER"]).optional(),
+  applicant: z
+    .object({
+      name: z.string().optional(),
+      nationalId: z.string().optional(),
+      phone: z.string().optional(),
+      email: z.string().optional(),
+      relationship: z.string().optional(),
+    })
+    .optional(),
+  recipient: z
+    .object({
+      name: z.string().optional(),
+      nationalId: z.string().optional(),
+      birthDate: z.string().optional(),
+      currentAddress: z.string().optional(),
+      registeredAddress: z.string().optional(),
+    })
+    .optional(),
+  careContext: z
+    .object({
+      recentEvent: z.string().optional(),
+      mobility: z.string().optional(),
+      bathing: z.string().optional(),
+      eating: z.string().optional(),
+      toileting: z.string().optional(),
+      daytimeCaregiverAvailability: z.string().optional(),
+      primaryCaregiver: z.string().optional(),
+      caregiverBurden: z.string().optional(),
+      environmentRisks: z.string().optional(),
+      currentServices: z.string().optional(),
+      goal: z.string().optional(),
+    })
+    .optional(),
+  intake: z
+    .object({
+      sex: z.string().optional(),
+      language: z.string().optional(),
+      livingArrangement: z.string().optional(),
+      hiredCaregiver: z.string().optional(),
+      hospitalizedRecently: z.string().optional(),
+      transfers: z.string().optional(),
+      dressing: z.string().optional(),
+      requestedServices: z.array(z.enum(applicationServiceOptions)).optional(),
+      referralSource: z.string().optional(),
+    })
+    .optional(),
+  consent: z
+    .object({
+      privacyAccepted: z.boolean().optional(),
+      proxyConfirmed: z.boolean().optional(),
+    })
+    .optional(),
+  precheck: z
+    .object({
+      disability: z.boolean().optional(),
+      dementia: z.boolean().optional(),
+      indigenous: z.boolean().optional(),
+      pac: z.boolean().optional(),
+    })
+    .optional(),
+});
+
+export async function runChatAgent(
+  message: string,
+  application?: {
+    data: ApplicationIntakeData;
+    missingFields: string[];
+    optionalFields: readonly string[];
+    collect: (patch: ApplicationIntakeData) => Promise<ApplicationIntakeProgress>;
+  },
+  history: Array<{ role: "assistant" | "user"; content: string }> = [],
+): Promise<string> {
+  const agent = application
+    ? new Agent({
+        name: "長照申請資料收整助手",
+        instructions: `你要協助使用者完成長照申請資料收整。根據目前草稿、missingFields 順序、對話前文與最新訊息，只把使用者明確提供的資料傳給 collect_application_intake，不可猜測。每回合最多呼叫一次工具。工具回傳 collecting 時，簡短確認後只詢問 missingFields 的第一個欄位；optionalFields 可收整但不阻擋大禮包。回傳 packaged 時，告知申請大禮包已建立。欲申請服務只能選：${applicationServiceOptions.join("、")}。`,
+        model: "gpt-5.6-luna",
+        modelSettings: {
+          maxTokens: 1000,
+          reasoning: { effort: "none" },
+          store: false,
+        },
+        tools: [
+          tool({
+            name: "collect_application_intake",
+            description: "保存使用者明確提供的長照申請資料；完整後會自動建立申請大禮包。",
+            parameters: _applicationPatchSchema,
+            execute: application.collect,
+          }),
+        ],
+      })
+    : _chatAgent;
+  const transcript = history
+    .map(({ role, content }) => `${role === "user" ? "使用者" : "助手"}：${content}`)
+    .join("\n");
+  const input = application
+    ? `對話前文：\n${transcript || "（無）"}\n目前草稿：${JSON.stringify(application.data)}\n尚缺欄位：${application.missingFields.join("、")}\n選填欄位：${application.optionalFields.join("、")}\n使用者最新訊息：${message}`
+    : `${transcript ? `對話前文：\n${transcript}\n` : ""}使用者最新訊息：${message}`;
+  const result = await _runner.run(agent, input, { maxTurns: application ? 3 : 2 });
 
   if (typeof result.finalOutput !== "string" || !result.finalOutput.trim()) {
     throw new Error("Agent returned an empty response");
