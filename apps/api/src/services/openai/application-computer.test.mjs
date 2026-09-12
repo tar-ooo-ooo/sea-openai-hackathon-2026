@@ -40,10 +40,24 @@ test("自動操作視窗逐欄位重播已收整資料", async () => {
     scrollIntoViewIfNeeded: async () => {},
     click: async () => events.push("next"),
   };
+  const finalConfirmation = {
+    scrollIntoViewIfNeeded: async () => {},
+    check: async () => events.push("confirm"),
+  };
+  const submitButton = {
+    scrollIntoViewIfNeeded: async () => {},
+    focus: async () => events.push("ready to submit"),
+  };
   const page = {
     goto: async (url) => events.push(`goto ${url}`),
     waitForSelector: async () => {},
-    locator: (selector) => selector === ".gov-long-form" ? form : continueButton,
+    locator: (selector) => selector === ".gov-long-form"
+      ? form
+      : selector === "#final-confirmation"
+        ? finalConfirmation
+        : selector === "[data-agent-action='submit-application']"
+          ? submitButton
+          : continueButton,
     waitForTimeout: async () => {},
   };
   const context = {
@@ -73,5 +87,7 @@ test("自動操作視窗逐欄位重播已收整資料", async () => {
     "select HOME",
     "check",
     "next",
+    "confirm",
+    "ready to submit",
   ]);
 });

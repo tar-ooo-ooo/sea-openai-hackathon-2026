@@ -25,10 +25,10 @@ export function normalizeAssistantContent(content: string) {
 }
 
 function _normalizeApplicationLink(content: string, action?: ApplicationAction) {
-  return action ? content : content.replace(
+  return content.replace(
     /\[檢視並送出申請\]\(http:\/\/localhost:3003\/apply\/[0-9a-f-]+\)(?:\s*正式案件會在您檢視並確認表單後建立。)?/gi,
-    "這份申請已完成或已無法編輯，請到[我的案件](/cases)查看。",
-  );
+    action ? "" : "這份申請已完成或已無法編輯。\n\n[查看我的案件](/cases)",
+  ).trim();
 }
 
 export function readHistory(value: unknown): ChatMessage[] {

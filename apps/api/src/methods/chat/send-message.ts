@@ -96,7 +96,6 @@ export async function sendMessage(
         data: applicationData,
         missingFields: getMissingApplicationFields(applicationData),
         optionalFields: optionalApplicationFields,
-        applicationUrl: `http://localhost:3003/apply/${intake.id}`,
         collect: (patch) =>
           collectApplicationIntake(intake.userId, intake.id, intake.data, patch),
         prepare: async () => {

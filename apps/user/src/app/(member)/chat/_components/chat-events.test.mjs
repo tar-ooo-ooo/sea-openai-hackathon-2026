@@ -29,13 +29,19 @@ test("只有後端核准的 action 會產生 Computer Tool 入口", async () => 
   const content = `資料已收整完成。[檢視並送出申請](http://localhost:3003/apply/${id})`;
   const history = readHistory({ messages: [{ role: "assistant", content }] })[0];
   assert.equal(history.action, undefined);
-  assert.match(history.content, /\[我的案件\]\(\/cases\)/);
+  assert.match(history.content, /已無法編輯。\n\n\[查看我的案件\]\(\/cases\)/);
   assert.doesNotMatch(history.content, /localhost:3003/);
   assert.doesNotMatch(history.content, /正式案件會/);
   const events = [];
   await readChatStream(new Response(JSON.stringify({ type: "result", result: { reply: content } })).body, (event) => events.push(event));
   assert.equal(events[0].result.action, undefined);
   assert.doesNotMatch(events[0].result.reply, /localhost:3003/);
+
+  const active = readHistory({
+    messages: [{ role: "assistant", content, action: { type: "application_computer", intakeId: id } }],
+  })[0];
+  assert.equal(active.content, "資料已收整完成。");
+  assert.doesNotMatch(active.content, /檢視並送出申請/);
 });
 
 test("Enter 送出，但換行與中文輸入法選字不誤送", () => {

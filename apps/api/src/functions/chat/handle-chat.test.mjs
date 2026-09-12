@@ -173,13 +173,16 @@ test("歷史查詢只使用 session 身分並且不快取", async () => {
 
 test("歷史只有目前可操作的草稿才帶 Computer Tool action", async () => {
   const { getChatHistory } = await import("../../methods/chat/get-history.ts");
-  const content = `請檢視：http://localhost:3003/apply/${_userId}`;
-  const messages = [{ role: "assistant", content }];
+  const messages = [
+    { role: "assistant", content: `舊版連結：http://localhost:3003/apply/${_userId}` },
+    { role: "assistant", content: "資料已收整完成，請在自動操作視窗確認並送出申請。" },
+  ];
   const active = await getChatHistory(
     _userId,
     async () => messages,
     async () => ({ id: _userId, formReview: { prefillFields: ["recipient.name"] } }),
   );
-  assert.deepEqual(active[0].action, { type: "application_computer", intakeId: _userId });
+  assert.equal(active[0].action, undefined);
+  assert.deepEqual(active[1].action, { type: "application_computer", intakeId: _userId });
   assert.deepEqual(await getChatHistory(_userId, async () => messages, async () => null), messages);
 });

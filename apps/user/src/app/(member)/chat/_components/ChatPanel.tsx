@@ -90,7 +90,7 @@ export default function ChatPanel() {
         method: "POST",
         credentials: "include",
       });
-      setComputerNotice({ intakeId, text: "申請操作視窗已開啟；請親自確認同意與送出。" });
+      setComputerNotice({ intakeId, text: "申請操作視窗已開啟；請親自確認首次同意與最終送出。" });
     } catch (cause) {
       setComputerNotice({
         intakeId,
@@ -121,7 +121,7 @@ export default function ChatPanel() {
             </button>
             <p id={`autofill-note-${index}`}>{computerNotice?.intakeId === message.action.intakeId
               ? computerNotice.text
-              : "會將申請畫面提供給 AI 檢查並開啟獨立 Chrome；同意與送出仍由你操作。"}</p>
+              : "會在獨立 Chrome 逐欄填寫並停在送出前；首次同意與最終送出仍由你操作。"}</p>
           </div>}
         </div> : <p className={styles.bubble}>{message.content}</p>}
       </article>)}

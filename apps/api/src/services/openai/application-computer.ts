@@ -48,6 +48,13 @@ async function _replayPrefilledFields(page: Page) {
   await page.waitForTimeout(500);
   await continueButton.click();
   await page.waitForSelector(".gov-review", { state: "visible" });
+  const finalConfirmation = page.locator("#final-confirmation");
+  await finalConfirmation.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await finalConfirmation.check();
+  const submitButton = page.locator("[data-agent-action='submit-application']");
+  await submitButton.scrollIntoViewIfNeeded();
+  await submitButton.focus();
 }
 
 export async function openApplicationWithComputer(

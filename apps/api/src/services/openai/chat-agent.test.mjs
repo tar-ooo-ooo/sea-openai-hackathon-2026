@@ -62,7 +62,6 @@ test("申請 Agent 只收整資料，不提早建立正式案件", async (contex
     data: {},
     missingFields: [],
     optionalFields: [],
-    applicationUrl: "http://localhost:3003/apply/intake-a",
     collect: async () => ({ status: "ready", missingFields: [] }),
     prepare: async () => ({
       status: "ready",
@@ -77,9 +76,10 @@ test("申請 Agent 只收整資料，不提早建立正式案件", async (contex
   });
 
   assert.deepEqual(toolNames, ["collect_application_intake", "prepare_application_form"]);
-  assert.match(instructions, /資料已收整完成，請檢視資料/);
+  assert.match(instructions, /資料已收整完成，請在自動操作視窗確認並送出申請/);
   assert.doesNotMatch(instructions, /告知 Sol|交由 Sol/);
-  assert.match(instructions, /http:\/\/localhost:3003\/apply\/intake-a/);
+  assert.doesNotMatch(instructions, /http:\/\/localhost:3003\/apply/);
+  assert.match(instructions, /不得提供申請連結/);
   assert.match(instructions, /正式案件只能在使用者檢視並確認表單後建立/);
   assert.match(instructions, /回答「本人」時，必須設定 applicantRole 為 SELF/);
   assert.match(instructions, /申請長照服務：https:\/\/1966\.gov\.tw/);
@@ -97,7 +97,6 @@ test("修改既有禮包時只提供更新 tool", async (context) => {
     data: { intake: { requestedServices: ["照顧服務"] } },
     missingFields: [],
     optionalFields: [],
-    applicationUrl: "http://localhost:3003/apply/intake-a",
     collect: async () => ({ status: "ready", missingFields: [] }),
     prepare: async () => ({ status: "ready", missingFields: [] }),
     update: async () => ({
