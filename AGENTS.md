@@ -208,6 +208,15 @@ function _validateUser() {}
 - 完成後檢查 diff，只保留本任務必要變更，並只執行與變更範圍相稱的格式化與測試。
 - 回覆時列出實際修改的檔案，讓其他開發者能快速判斷衝突範圍。
 
+## Git Commit 規範
+
+- 只有使用者明確要求時才建立 commit。
+- commit message 遵循 Conventional Commits：`<type>(<scope>): <中文摘要>`；`scope` 可省略。
+- `type` 使用 `feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、`ci`、`chore` 或 `revert`，其餘摘要與正文使用繁體中文。
+- 摘要簡短描述單一變更，不加句號；不要在同一個 commit 混入無關修改。
+- breaking change 使用 `<type>(<scope>)!: <中文摘要>`，並在 footer 加上 `BREAKING CHANGE: <中文說明>`。
+- 範例：`feat(auth): 新增 Google 登入流程`、`fix(api): 修正無效參數未回傳錯誤`。
+
 ## 實作規則
 
 - 修改前先讀相關頁面、元件、型別與所有呼叫端，修根因，不在多處重複補丁。
