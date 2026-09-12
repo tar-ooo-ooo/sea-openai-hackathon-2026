@@ -117,7 +117,7 @@ export default function ChatPanel() {
       <button className={styles.sendButton} aria-label={sending ? "處理中" : "送出訊息"} disabled={loading || sending || needsReload || !draft.trim()}>{sending ? <span aria-hidden="true">◌</span> : <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z M22 2 11 13" /></svg>}</button>
     </form>
     <p id="chat-hint" className={styles.hint}>Enter 送出 · Shift／⌘ + Enter 換行 <span>{draft.length} / 4000 字</span></p>
-    <p id="chat-privacy" className={styles.notice}>比賽測試版，請只使用虛構資料，勿輸入真實個資。申請整理不代表已送出申請。歷史顯示最近 20 則。</p>
+    <p id="chat-privacy" className={styles.notice}>申請整理不代表已送出申請。歷史顯示最近 20 則。</p>
     </div>
     {reviewCaseId && <ApplicationReview caseId={reviewCaseId} onClose={() => setReviewCaseId(null)} />}
   </section>;
