@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { loadCareCases, type CareCaseListItem } from "@/features/care-cases/api";
 import { loadAdminTriages, type AdminTriage } from "@/features/admin-triages/api";
 import { loadAdminCases, type AdminCaseListItem } from "@/features/admin-cases/api";
+import { StartCaseButton } from "./_components/StartCaseButton";
 import styles from "./application-inbox.module.css";
 
 function _formatDate(value: string) {
@@ -49,6 +50,13 @@ export default async function Home() {
     hasTriageError = true;
   }
 
+  const newCasesByApplicationId = new Map(careCases
+    .filter((careCase) => careCase.status === "new" && careCase.sourceApplicationPackageId)
+    .map((careCase) => [careCase.sourceApplicationPackageId as string, careCase]));
+  const pendingApplications = applications.filter((application) => newCasesByApplicationId.has(application.id));
+  const activeCareCases = careCases.filter((careCase) => careCase.status !== "new");
+  const hasInboxError = hasApplicationError || hasServiceError;
+
   return (
     <>
       <section className="page-heading">
@@ -88,12 +96,12 @@ export default async function Home() {
             <p className="eyebrow">APPLICATION INBOX</p>
             <h2 id="application-cases-heading">申請資料列表</h2>
           </div>
-          {!hasApplicationError && <span className={styles.count}>{applications.length} 筆申請</span>}
+          {!hasInboxError && <span className={styles.count}>{pendingApplications.length} 筆待接案</span>}
         </div>
-        <p className={styles.notice}><strong>正式申請資料</strong><span>民眾確認送出後，系統會同時建立申請資料與正式案件；可先檢視完整內容，再從案件進入 Case 360 處理。</span></p>
-        {hasApplicationError ? <p className="empty-state">暫時無法取得申請資料，請重新整理。</p>
-          : applications.length === 0 ? <p className="empty-state">目前沒有已產生的申請資料。</p>
-            : <div className={styles.list}>{applications.map((application) => (
+        <p className={styles.notice}><strong>待接案申請</strong><span>只顯示民眾已送出、尚未由專員開始處理的案件；開始接案後會移至正式個案清單。</span></p>
+        {hasInboxError ? <p className="empty-state">暫時無法取得待接案資料，請重新整理。</p>
+          : pendingApplications.length === 0 ? <p className="empty-state">目前沒有等待接案的申請。</p>
+            : <div className={styles.list}>{pendingApplications.map((application) => (
               <article className={styles.card} key={application.id}>
                 <div className={styles.identity}>
                   <span className={styles.avatar} aria-hidden="true">{Array.from(application.targetName)[0] || "申"}</span>
@@ -105,8 +113,11 @@ export default async function Home() {
                   <span>更新於 <time dateTime={application.updatedAt}>{_formatDate(application.updatedAt)}</time></span>
                 </div>
                 <div className={styles.footer}>
-                  <span className={styles.pending}>已送出</span>
-                  <Link className={styles.detailLink} href={`/cases/${application.id}`} aria-label={`查看${application.targetName}的申請明細`}>查看完整明細<span aria-hidden="true">→</span></Link>
+                  <span className={styles.pending}>等待接案</span>
+                  <div className={styles.actions}>
+                    <Link className={styles.detailLink} href={`/cases/${application.id}`} aria-label={`查看${application.targetName}的申請明細`}>查看完整明細</Link>
+                    <StartCaseButton careCaseId={newCasesByApplicationId.get(application.id)!.id} />
+                  </div>
                 </div>
               </article>
             ))}</div>}
@@ -117,11 +128,11 @@ export default async function Home() {
             <p className="eyebrow">FORMAL CARE CASES</p>
             <h2 id="care-cases-heading">正式申請案件</h2>
           </div>
-          {!hasServiceError && <span>{careCases.length} 件</span>}
+          {!hasServiceError && <span>{activeCareCases.length} 件</span>}
         </div>
         {hasServiceError ? <p className="empty-state">暫時無法取得正式個案資料。</p>
-          : careCases.length === 0 ? <p className="empty-state">目前沒有已送出的正式申請案件。</p>
-            : <div className="inbox-list">{careCases.map((careCase) => (
+          : activeCareCases.length === 0 ? <p className="empty-state">目前沒有已開始處理的個案。</p>
+            : <div className="inbox-list">{activeCareCases.map((careCase) => (
               <article className="inbox-card" key={careCase.id}>
                 <div className="priority-mark priority-medium" aria-hidden="true" />
                 <div className="inbox-content">

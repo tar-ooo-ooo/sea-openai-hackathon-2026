@@ -21,6 +21,10 @@ export async function recordCareCaseAction(input: {
     WITH updated AS (
       UPDATE care_cases
       SET status = ${input.status}::care_case_status, updated_at = now(),
+          accepted_at = CASE
+            WHEN ${input.expectedStatus} = 'new' AND ${input.status} = 'assessing' THEN now()
+            ELSE accepted_at
+          END,
           closed_at = CASE WHEN ${input.status} = 'closed' THEN now() ELSE closed_at END,
           assigned_admin_id = COALESCE(assigned_admin_id, ${input.adminId}::uuid)
       WHERE id = ${input.caseId}::uuid AND status = ${input.expectedStatus}::care_case_status
@@ -86,7 +90,8 @@ export async function createCaseAssessmentWithEvent(input: {
       UPDATE "care_cases"
       SET "updated_at" = now(),
           "assigned_admin_id" = COALESCE("assigned_admin_id", ${input.adminId}::uuid),
-          "status" = CASE WHEN "status" = 'new' THEN 'assessing'::care_case_status ELSE "status" END
+          "status" = CASE WHEN "status" = 'new' THEN 'assessing'::care_case_status ELSE "status" END,
+          "accepted_at" = CASE WHEN "status" = 'new' THEN now() ELSE "accepted_at" END
       WHERE "id" = ${input.careCaseId}
         AND status <> 'closed'
         AND (assigned_admin_id IS NULL OR assigned_admin_id = ${input.adminId}::uuid)

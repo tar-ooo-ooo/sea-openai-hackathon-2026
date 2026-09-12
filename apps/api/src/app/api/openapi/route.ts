@@ -37,7 +37,7 @@ const _openApiDocument = {
     "/api/admin/care-cases/{caseId}/actions": {
       post: {
         tags: ["Admin"], summary: "專員開始處理、記錄聯絡／追蹤或結案",
-        description: "須可信後台 Origin 與專員 cookie；限承辦人或未指派個案。首次操作認領未指派個案。開始處理僅限 new；已結案不得操作。狀態與時間線原子寫入，但不代表政府已核定申請。",
+        description: "須可信後台 Origin 與專員 cookie；限承辦人或未指派個案。start 僅限 new，會認領承辦人、寫入 acceptedAt 並轉為 assessing，不新增個案；已結案不得操作。狀態與時間線原子寫入，但不代表政府已核定申請。",
         security: [{ adminSession: [] }],
         parameters: [{ name: "caseId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         requestBody: { required: true, content: { "application/json": { schema: {
@@ -411,8 +411,8 @@ const _openApiDocument = {
     "/api/admin/care-cases": {
       get: {
         tags: ["Admin"],
-        summary: "查詢既有已接案個案",
-        description: "列出確認送出時建立的 care_cases。未指派個案會在專員首次操作或儲存評估時由該專員承辦。",
+        summary: "查詢正式個案及處理狀態",
+        description: "列出確認送出時建立的 care_cases，包含尚待接案的 new；acceptedAt 在專員開始處理前為 null。後台依狀態將 new 顯示在申請收件匣，其餘顯示在正式個案清單。",
         security: [{ adminSession: [] }],
         responses: {
           "200": { description: "Care cases" },

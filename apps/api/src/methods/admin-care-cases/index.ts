@@ -30,12 +30,12 @@ function _toCareCaseListItem(careCase: {
   status: CareCaseListItem["status"];
   priority: CareCaseListItem["priority"];
   assignedAdminId: string | null;
-  acceptedAt: Date;
+  acceptedAt: Date | null;
   updatedAt: Date;
 }): CareCaseListItem {
   return {
     ...careCase,
-    acceptedAt: careCase.acceptedAt.toISOString(),
+    acceptedAt: careCase.acceptedAt?.toISOString() ?? null,
     updatedAt: careCase.updatedAt.toISOString(),
   };
 }
