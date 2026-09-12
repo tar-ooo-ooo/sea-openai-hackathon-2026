@@ -66,6 +66,7 @@ export async function updateApplicationIntake(
 export async function createApplicationPackage(input: {
   intakeId: string;
   userId: string;
+  data: ApplicationIntakeData;
   targetName: string;
   summary: string;
   services: Array<{
@@ -96,6 +97,7 @@ export async function createApplicationPackage(input: {
     db
       .update(applicationIntakes)
       .set({
+        data: input.data,
         status: "packaged",
         applicationPackageId: packageId,
         updatedAt: new Date(),

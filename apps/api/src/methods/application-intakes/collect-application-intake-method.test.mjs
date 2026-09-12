@@ -6,7 +6,7 @@ process.env.DATABASE_URL ??= "postgresql://test:test@localhost/test";
 const { db } = await import("../../services/db/client.ts");
 const {
   collectApplicationIntake,
-  generateApplicationPackage,
+  submitApplicationIntake,
   updateApplicationPackage,
 } = await import("./collect-application-intake.ts");
 
@@ -51,24 +51,48 @@ test("收整完成只回傳 ready，不建立禮包", async (context) => {
   assert.equal(packageCreated, false);
 });
 
-test("產生禮包前重新驗證 DB 內的完整資料", async (context) => {
+test("使用者送出前重新驗證並合併 DB 內的完整資料", async (context) => {
   let packageCreated = false;
   context.mock.method(db, "select", () => ({
     from: () => ({
       where: () => ({
-        limit: async () => [{ data: _completeData, applicationPackageId: null }],
+        limit: async () => [{ data: _completeData, status: "collecting", applicationPackageId: null }],
       }),
     }),
   }));
-  context.mock.method(db, "batch", async () => {
+  context.mock.method(db, "batch", async (queries) => {
     packageCreated = true;
+    assert.match(JSON.stringify(queries[2].toSQL().params), /繼續在家生活/);
   });
 
-  const result = await generateApplicationPackage(_userId, _intakeId);
+  const result = await submitApplicationIntake(_userId, _intakeId, {
+    careContext: { goal: "繼續在家生活" },
+  });
 
   assert.equal(result.status, "packaged");
   assert.match(result.applicationPackageId ?? "", /^[0-9a-f-]{36}$/);
   assert.equal(packageCreated, true);
+});
+
+test("重複送出同一 intake 只回傳既有正式案件", async (context) => {
+  context.mock.method(db, "select", () => ({
+    from: () => ({
+      where: () => ({
+        limit: async () => [{
+          data: _completeData,
+          status: "packaged",
+          applicationPackageId: "00000000-0000-4000-8000-000000000003",
+        }],
+      }),
+    }),
+  }));
+  context.mock.method(db, "batch", async () => assert.fail("不得重複建立案件"));
+
+  assert.deepEqual(await submitApplicationIntake(_userId, _intakeId, _completeData), {
+    status: "packaged",
+    missingFields: [],
+    applicationPackageId: "00000000-0000-4000-8000-000000000003",
+  });
 });
 
 test("更新禮包前以 userId 重新讀取並合併資料", async (context) => {

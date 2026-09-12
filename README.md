@@ -138,7 +138,7 @@ API 的 `dev:api`、`build:api`、`start:api` 與 Drizzle 都明確載入根目�
 
 密碼格式為 `scrypt-v1:<salt>:<hash>`，參數 N=32768、r=8、p=1、64-byte key；既有其他雜湊格式不會自動遷移。Session 使用 8 小時 HMAC 簽章 HttpOnly cookie；每次 session 查詢再由資料庫確認使用者角色。未來的資料 API 必須自行呼叫身份驗證 method，不能只依賴前台 layout。
 
-本機請統一使用 `localhost`，不要混用 `127.0.0.1`。API app 的 `apps/api/src/proxy.ts` 統一處理所有端點（含 `/api/*`、`/chat` 及未來新增路由）的 CORS 與 OPTIONS，handler 不需重複設定。開發環境只允許 `http://localhost:3000`、`http://localhost:3001`，支援 cookie；不可信 Origin 在進入 handler 前回傳 403。無 Origin 的伺服器請求可通過，但登入／登出等 cookie 寫入仍要求可信 Origin。CORS 不取代身分驗證。production 必須設定 `USER_AUTH_ALLOWED_ORIGINS` 明確 allowlist（沿用變數名稱，套用至所有 API），並使用 HTTPS；目前固定 localhost API URL 仍是本機 Demo 契約，尚不適合直接部署。
+本機請統一使用 `localhost`，不要混用 `127.0.0.1`。API app 的 `apps/api/src/proxy.ts` 統一處理所有端點（含 `/api/*`、`/chat` 及未來新增路由）的 CORS 與 OPTIONS，handler 不需重複設定。開發環境只允許 `http://localhost:3000`、`http://localhost:3001`、`http://localhost:3003`，支援 cookie；不可信 Origin 在進入 handler 前回傳 403。無 Origin 的伺服器請求可通過，但登入／登出等 cookie 寫入仍要求可信 Origin。CORS 不取代身分驗證。production 必須設定 `USER_AUTH_ALLOWED_ORIGINS` 明確 allowlist（沿用變數名稱，套用至所有 API），並使用 HTTPS；目前固定 localhost API URL 仍是本機 Demo 契約，尚不適合直接部署。
 
 MVP 限制：沒有忘記密碼、身份真實性查驗、跨裝置登出；登出會清除目前 cookie，但已複製的簽章 token 在到期前仍有效。限流為單一 API process 共用每分鐘 30 次登入／註冊嘗試，正式服務需改為持久化、分身份限流。請勿使用真實個資或常用密碼測試。
 

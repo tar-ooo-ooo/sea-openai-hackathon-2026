@@ -42,7 +42,7 @@ test("摘要 Agent 合併既有摘要與較舊訊息", async (context) => {
   assert.match(input, /較舊對話：\n助手：較舊回覆/);
 });
 
-test("申請 Agent 提供收整與產生禮包兩個 tools", async (context) => {
+test("申請 Agent 只收整資料，不提早建立正式案件", async (context) => {
   let toolNames = [];
   let instructions = "";
   context.mock.method(Runner.prototype, "run", async (agent) => {
@@ -57,11 +57,6 @@ test("申請 Agent 提供收整與產生禮包兩個 tools", async (context) => 
     missingFields: [],
     optionalFields: [],
     collect: async () => ({ status: "ready", missingFields: [] }),
-    generate: async () => ({
-      status: "packaged",
-      missingFields: [],
-      applicationPackageId: "00000000-0000-4000-8000-000000000001",
-    }),
     update: async () => ({
       status: "packaged",
       missingFields: [],
@@ -69,10 +64,8 @@ test("申請 Agent 提供收整與產生禮包兩個 tools", async (context) => 
     }),
   });
 
-  assert.deepEqual(toolNames, [
-    "collect_application_intake",
-    "generate_application_package",
-  ]);
+  assert.deepEqual(toolNames, ["collect_application_intake"]);
+  assert.match(instructions, /正式案件只能在使用者檢視並確認表單後建立/);
   assert.match(instructions, /申請長照服務：https:\/\/1966\.gov\.tw/);
 });
 
@@ -89,7 +82,6 @@ test("修改既有禮包時只提供更新 tool", async (context) => {
     missingFields: [],
     optionalFields: [],
     collect: async () => ({ status: "ready", missingFields: [] }),
-    generate: async () => ({ status: "packaged", missingFields: [] }),
     update: async () => ({
       status: "packaged",
       missingFields: [],

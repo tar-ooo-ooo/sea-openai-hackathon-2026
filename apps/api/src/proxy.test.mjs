@@ -13,7 +13,7 @@ test("集中 CORS：來源、預檢、一般請求及 production allowlist", (t)
   const request = (origin, method = "GET") => new NextRequest("http://localhost:3002/chat", {
     method, headers: origin ? { Origin: origin } : {},
   });
-  for (const origin of ["http://localhost:3000", "http://localhost:3001"]) {
+  for (const origin of ["http://localhost:3000", "http://localhost:3001", "http://localhost:3003"]) {
     for (const method of ["GET", "POST", "OPTIONS"]) {
       const response = proxy(request(origin, method));
       assert.equal(response.status, method === "OPTIONS" ? 204 : 200);

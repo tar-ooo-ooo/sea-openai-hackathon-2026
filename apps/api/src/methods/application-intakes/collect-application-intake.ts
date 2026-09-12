@@ -65,12 +65,18 @@ export async function collectApplicationIntake(
   };
 }
 
-export async function generateApplicationPackage(
+export async function getApplicationIntakeForReview(userId: string, intakeId: string) {
+  const intake = await findApplicationIntake(intakeId, userId);
+  return intake?.status === "collecting" ? { id: intake.id, data: intake.data } : null;
+}
+
+export async function submitApplicationIntake(
   userId: string,
   intakeId: string,
-): Promise<ApplicationIntakeProgress> {
+  patch: ApplicationIntakeData,
+): Promise<ApplicationIntakeProgress | null> {
   const intake = await findApplicationIntake(intakeId, userId);
-  if (!intake) throw new Error("Application intake not found");
+  if (!intake) return null;
   if (intake.applicationPackageId) {
     return {
       status: "packaged",
@@ -79,13 +85,16 @@ export async function generateApplicationPackage(
     };
   }
 
-  const missingFields = getMissingApplicationFields(intake.data);
+  if (intake.status !== "collecting") return null;
+  const data = _mergeData(intake.data, patch);
+  const missingFields = getMissingApplicationFields(data);
   if (missingFields.length > 0) return { status: "collecting", missingFields };
 
   const packageId = await createApplicationPackage({
     intakeId,
     userId,
-    ..._buildApplicationPackage(intake.data),
+    data,
+    ..._buildApplicationPackage(data),
   });
 
   return { status: "packaged", missingFields: [], applicationPackageId: packageId };

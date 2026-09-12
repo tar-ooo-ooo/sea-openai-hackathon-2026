@@ -346,24 +346,32 @@ export function createSandboxService(
     getCase(id: string): SandboxCase {
       return clone(find(read(), id));
     },
-    createCase(): SandboxCase {
+    createCase(
+      id?: string,
+      data: CasePatch & {
+        consent?: Partial<Pick<SandboxCase["consent"], "privacyAccepted" | "proxyConfirmed">>;
+      } = {},
+    ): SandboxCase {
       const store = read();
+      const existing = id ? store.cases.find((item) => item.id === id) : undefined;
+      if (existing) return clone(existing);
       const at = now();
-      store.sequence++;
+      if (!id) store.sequence++;
       const c: SandboxCase = {
         schemaVersion: 1,
-        id: `LTC-${new Date().getFullYear()}-${String(store.sequence).padStart(4, "0")}`,
+        id: id ?? `LTC-${new Date().getFullYear()}-${String(store.sequence).padStart(4, "0")}`,
         version: 1,
         dataRevision: 0,
-        jurisdiction: "",
-        applicantRole: "",
-        currentSituation: "",
+        jurisdiction: data.jurisdiction ?? "",
+        applicantRole: data.applicantRole ?? "",
+        currentSituation: data.currentSituation ?? "",
         applicant: {
           name: "",
           nationalId: "",
           phone: "",
           email: "",
           relationship: "",
+          ...data.applicant,
         },
         recipient: {
           name: "",
@@ -371,6 +379,7 @@ export function createSandboxService(
           birthDate: "",
           currentAddress: "",
           registeredAddress: "",
+          ...data.recipient,
         },
         careContext: {
           recentEvent: "",
@@ -384,6 +393,7 @@ export function createSandboxService(
           environmentRisks: "",
           currentServices: "",
           goal: "",
+          ...data.careContext,
         },
         intake: {
           sex: "",
@@ -395,10 +405,11 @@ export function createSandboxService(
           dressing: "",
           requestedServices: [],
           referralSource: "",
+          ...data.intake,
         },
         consent: {
-          privacyAccepted: false,
-          proxyConfirmed: false,
+          privacyAccepted: data.consent?.privacyAccepted ?? false,
+          proxyConfirmed: data.consent?.proxyConfirmed ?? false,
           finalSubmissionApproved: false,
           approvedRevision: null,
         },
@@ -409,6 +420,7 @@ export function createSandboxService(
           dementia: false,
           indigenous: false,
           pac: false,
+          ...data.precheck,
         },
         draftStage: "DRAFT",
         application: {
@@ -422,7 +434,7 @@ export function createSandboxService(
         createdAt: at,
         updatedAt: at,
       };
-      addEvent(c, "DRAFT_CREATED", "建立申請草稿");
+      addEvent(c, "DRAFT_CREATED", id ? "載入 Agent 已整理的申請草稿" : "建立申請草稿");
       store.cases.push(c);
       write(store);
       return clone(c);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Check, Printer, Save } from "lucide-react";
 import { validateCase } from "../../services/sandbox";
 import type { CasePatch, GovernmentIntake, SandboxCase } from "../../types";
 import { Empty, Notice, PageHeading, errorText, useSandbox } from "../../ui";
+import { fetchApi } from "../../lib/fetch-api";
 
 const emptyIntake: GovernmentIntake = {
   sex: "",
@@ -29,6 +30,7 @@ const serviceOptions = [
   "喘息服務",
   "尚不確定，請協助評估",
 ];
+const _uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const roleOptions: [string, string][] = [
   ["SELF", "本人申請"],
   ["FAMILY_PROXY", "家屬代為申請"],
@@ -199,10 +201,37 @@ function ApplicationForm({ id }: { id?: string }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [finalCheck, setFinalCheck] = useState(false);
+  const [loadingIntake, setLoadingIntake] = useState(!!id && _uuidPattern.test(id) && !item);
+  const [submitting, setSubmitting] = useState(false);
   const [permission, setPermission] = useState({
     privacyAccepted: item?.consent.privacyAccepted || false,
     proxyConfirmed: item?.consent.proxyConfirmed || false,
   });
+  useEffect(() => {
+    if (!id || item || !_uuidPattern.test(id)) return;
+    const controller = new AbortController();
+    fetchApi<{ intake: { id: string; data: CasePatch & { consent?: SandboxCase["consent"] } } }>(
+      `/api/application-intakes/${id}`,
+      { credentials: "include", cache: "no-store", signal: controller.signal },
+    )
+      .then(({ intake }) => {
+        const loaded = service.createCase(intake.id, intake.data);
+        setForm(loaded);
+        setPermission({
+          privacyAccepted: loaded.consent.privacyAccepted,
+          proxyConfirmed: loaded.consent.proxyConfirmed,
+        });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setError("無法載入 Agent 已整理的申請資料，請確認登入狀態後重試。");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingIntake(false);
+      });
+    return () => controller.abort();
+  }, [id, item, service]);
   function create() {
     try {
       router.push(`/apply/${service.createCase().id}`);
@@ -266,8 +295,8 @@ function ApplicationForm({ id }: { id?: string }) {
     );
   if (!item || !form)
     return (
-      <Empty title="找不到這份申請">
-        <p>請確認案件編號，或返回申請頁重新建立。</p>
+      <Empty title={loadingIntake ? "正在載入申請資料" : "找不到這份申請"}>
+        <p>{loadingIntake ? "正在讀取 Agent 已整理的內容。" : error || "請確認案件編號，或返回申請頁重新建立。"}</p>
       </Empty>
     );
   if (!["DRAFT", "RETURNED"].includes(item.application.status))
@@ -364,14 +393,26 @@ function ApplicationForm({ id }: { id?: string }) {
       setError(errorText(e));
     }
   }
-  function submit() {
+  async function submit() {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       if (!finalCheck) throw new Error("請先確認本次申請內容。");
       service.approveSubmission(id!, form?.dataRevision);
+      await fetchApi<{ applicationPackageId: string }>(`/api/application-intakes/${id}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmed: true, data: form }),
+      });
       service.submitCase(id!);
       router.push(`/cases/${id}?receipt=1`);
     } catch (e) {
-      setError(errorText(e));
+      setError(e instanceof Error && e.message.includes("status 401")
+        ? "登入已過期，請重新登入後再送出。"
+        : "暫時無法送出申請，資料仍保留在草稿中，請稍後重試。");
+    } finally {
+      setSubmitting(false);
     }
   }
   const profile = (
@@ -602,7 +643,7 @@ function ApplicationForm({ id }: { id?: string }) {
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            submit();
+            void submit();
           }}
         >
           <div className="gov-review-heading">
@@ -653,10 +694,10 @@ function ApplicationForm({ id }: { id?: string }) {
             <button
               className="button primary"
               type="submit"
-              disabled={!finalCheck}
+              disabled={!finalCheck || submitting}
               data-agent-action="submit-application"
             >
-              確認並送出申請 <ArrowRight size={17} />
+              {submitting ? "正在送出…" : "確認並送出申請"} <ArrowRight size={17} />
             </button>
           </div>
         </form>

@@ -30,8 +30,58 @@ const _openApiDocument = {
     { name: "Auth" },
     { name: "Chat" },
     { name: "Cases" },
+    { name: "Applications" },
   ],
   paths: {
+    "/api/application-intakes/{id}": {
+      get: {
+        tags: ["Applications"], summary: "讀取 Agent 已收整的申請草稿",
+        description: "只回傳登入使用者本人尚未正式送出的完整草稿，供申請頁檢視與修改。",
+        security: [{ userSession: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": { description: "草稿資料；Cache-Control: no-store", content: { "application/json": { schema: {
+            type: "object", required: ["intake"], properties: { intake: {
+              type: "object", required: ["id", "data"], properties: {
+                id: { type: "string", format: "uuid" }, data: { $ref: "#/components/schemas/ApplicationIntakeData" },
+              },
+            } },
+          } } } },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "404": { description: "找不到本人尚未送出的草稿" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+      post: {
+        tags: ["Applications"], summary: "確認並送出 Agent 已收整的申請",
+        description: "以登入使用者身分合併表單資料；只有必填資料完整且 confirmed 為 true 時，才建立 application_packages 與 application_services，並將 intake 標記為 packaged。相同 intake 重試時回傳既有案件 ID。",
+        security: [{ userSession: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: { required: true, content: { "application/json": { schema: {
+          type: "object", additionalProperties: false, required: ["confirmed", "data"], properties: {
+            confirmed: { type: "boolean", const: true },
+            data: { $ref: "#/components/schemas/ApplicationIntakeData" },
+          },
+        } } } },
+        responses: {
+          "200": { description: "正式案件已建立或先前已建立", content: { "application/json": { schema: {
+            type: "object", required: ["applicationPackageId"], properties: {
+              applicationPackageId: { type: "string", format: "uuid" },
+            },
+          } } } },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "404": { description: "找不到本人草稿" },
+          "413": { description: "申請資料超過 50 KB" },
+          "415": { $ref: "#/components/responses/UnsupportedMediaType" },
+          "422": { description: "必填資料尚未完整" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
     "/api/cases/{id}": _detailPath("case"),
     "/api/case-drafts/{id}": _detailPath("draft"),
     "/api/cases": {
@@ -250,6 +300,41 @@ const _openApiDocument = {
       },
     },
     schemas: {
+      ApplicationIntakeData: {
+        type: "object", additionalProperties: false,
+        properties: {
+          jurisdiction: { type: "string" },
+          applicantRole: { type: "string", enum: ["SELF", "FAMILY_PROXY", "PROFESSIONAL_PROXY", "OTHER_PROXY"] },
+          currentSituation: { type: "string", enum: ["HOME", "HOSPITAL_DISCHARGE", "INSTITUTION", "OTHER"] },
+          applicant: { type: "object", additionalProperties: false, properties: {
+            name: { type: "string" }, nationalId: { type: "string" }, phone: { type: "string" },
+            email: { type: "string" }, relationship: { type: "string" },
+          } },
+          recipient: { type: "object", additionalProperties: false, properties: {
+            name: { type: "string" }, nationalId: { type: "string" }, birthDate: { type: "string", format: "date" },
+            currentAddress: { type: "string" }, registeredAddress: { type: "string" },
+          } },
+          careContext: { type: "object", additionalProperties: false, properties: {
+            recentEvent: { type: "string" }, mobility: { type: "string" }, bathing: { type: "string" },
+            eating: { type: "string" }, toileting: { type: "string" }, daytimeCaregiverAvailability: { type: "string" },
+            primaryCaregiver: { type: "string" }, caregiverBurden: { type: "string" },
+            environmentRisks: { type: "string" }, currentServices: { type: "string" }, goal: { type: "string" },
+          } },
+          intake: { type: "object", additionalProperties: false, properties: {
+            sex: { type: "string" }, language: { type: "string" }, livingArrangement: { type: "string" },
+            hiredCaregiver: { type: "string" }, hospitalizedRecently: { type: "string" }, transfers: { type: "string" },
+            dressing: { type: "string" }, referralSource: { type: "string" },
+            requestedServices: { type: "array", maxItems: 7, items: { type: "string", enum: ["照顧服務", "專業服務／復能", "交通接送", "輔具服務", "居家無障礙環境改善", "喘息服務", "尚不確定，請協助評估"] } },
+          } },
+          consent: { type: "object", additionalProperties: false, properties: {
+            privacyAccepted: { type: "boolean" }, proxyConfirmed: { type: "boolean" },
+          } },
+          precheck: { type: "object", additionalProperties: false, properties: {
+            disability: { type: "boolean" }, dementia: { type: "boolean" },
+            indigenous: { type: "boolean" }, pac: { type: "boolean" },
+          } },
+        },
+      },
       AuthRequest: {
         type: "object",
         additionalProperties: false,

@@ -11,7 +11,6 @@ import {
 } from "../../services/chat-messages.ts";
 import {
   collectApplicationIntake,
-  generateApplicationPackage,
   getOrCreateApplicationIntake,
   updateApplicationPackage,
 } from "../application-intakes/collect-application-intake.ts";
@@ -90,7 +89,6 @@ export async function sendMessage(
         optionalFields: optionalApplicationFields,
         collect: (patch) =>
           collectApplicationIntake(intake.userId, intake.id, intake.data, patch),
-        generate: () => generateApplicationPackage(intake.userId, intake.id),
         update: (patch) => updateApplicationPackage(intake.userId, intake.id, patch),
       },
       history,
