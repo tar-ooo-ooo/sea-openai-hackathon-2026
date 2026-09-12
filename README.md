@@ -33,6 +33,8 @@ npm run dev:api
 
 使用資料庫前，請將 `apps/api/.env.local` 的 `DATABASE_URL` 換成 Neon pooled connection string。兩個前端透過共用 `fetchApi` 呼叫 `http://localhost:3002`。
 
+清空所有 `public` 資料表資料時，呼叫 `POST /api/database/clear`。此 API 保留資料表與 Drizzle migration 紀錄。
+
 ## 指令
 
 ```bash
