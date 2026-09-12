@@ -82,11 +82,25 @@ test("資料完整後由 Sol 選擇可預填欄位並排除未允許欄位", asy
 
   const result = await prepareApplicationForm(_userId, _intakeId);
 
-  assert.deepEqual(savedReview, { prefillFields: ["jurisdiction", "recipient.name"] });
+  assert.deepEqual(savedReview, { prefillFields: [
+    "jurisdiction",
+    "recipient.name",
+    "applicantRole",
+    "applicant.name",
+    "applicant.nationalId",
+    "recipient.nationalId",
+  ] });
   assert.deepEqual(result, {
     status: "ready",
     missingFields: [],
-    formReview: { prefillFields: ["jurisdiction", "recipient.name"] },
+    formReview: { prefillFields: [
+      "jurisdiction",
+      "recipient.name",
+      "applicantRole",
+      "applicant.name",
+      "applicant.nationalId",
+      "recipient.nationalId",
+    ] },
   });
 });
 
@@ -106,7 +120,7 @@ test("申請頁只取得 Sol 核准預填的欄位", async (context) => {
 
   assert.deepEqual(await getApplicationIntakeForReview(_userId, _intakeId), {
     id: _intakeId,
-    data: { jurisdiction: "臺北市", recipient: { name: "被照顧者" } },
+    data: { jurisdiction: "臺北市", recipient: { name: "申請人" } },
   });
 });
 
@@ -123,7 +137,7 @@ test("使用者送出前重新驗證並合併 DB 內的完整資料", async (con
     packageCreated = true;
     assert.match(JSON.stringify(queries[2].toSQL().params), /繼續在家生活/);
     assert.match(queries[3].toSQL().sql, /insert into "care_cases"/i);
-    assert.match(JSON.stringify(queries[3].toSQL().params), /被照顧者/);
+    assert.match(JSON.stringify(queries[3].toSQL().params), /申請人/);
     assert.equal(queries[3].toSQL().params.includes("new"), true);
   });
 

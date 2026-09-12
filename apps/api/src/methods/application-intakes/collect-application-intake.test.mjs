@@ -30,6 +30,22 @@ test("getMissingApplicationFields 只在完整資料時回傳空陣列", () => {
   assert.deepEqual(missingFields, []);
 });
 
+test("本人申請時姓名與證號只需提供一次", () => {
+  const applicantOnly = getMissingApplicationFields({
+    applicantRole: "SELF",
+    applicant: { name: "申請人", nationalId: "A123456789" },
+  });
+  assert.equal(applicantOnly.includes("被照顧者姓名"), false);
+  assert.equal(applicantOnly.includes("有效的被照顧者身分證字號或居留證號"), false);
+
+  const recipientOnly = getMissingApplicationFields({
+    applicantRole: "SELF",
+    recipient: { name: "申請人", nationalId: "A123456789" },
+  });
+  assert.equal(recipientOnly.includes("申請人姓名"), false);
+  assert.equal(recipientOnly.includes("有效的申請人身分證字號或居留證號"), false);
+});
+
 test("getMissingApplicationFields 拒絕格式錯誤的個資", () => {
   const missingFields = getMissingApplicationFields({
     applicantRole: "SELF",
@@ -38,6 +54,7 @@ test("getMissingApplicationFields 拒絕格式錯誤的個資", () => {
   });
 
   assert.ok(missingFields.includes("有效的申請人身分證字號或居留證號"));
+  assert.equal(missingFields.includes("有效的被照顧者身分證字號或居留證號"), false);
   assert.ok(missingFields.includes("有效的申請人聯絡電話"));
   assert.ok(missingFields.includes("有效的被照顧者出生日期（YYYY-MM-DD）"));
   assert.ok(missingFields.includes("有效的申請人電子郵件"));

@@ -11,6 +11,19 @@ const _hasBirthDate = (value: unknown) => {
   return !Number.isNaN(date.valueOf()) && date.toISOString().startsWith(value) && date <= new Date();
 };
 
+export function normalizeApplicationIntakeData(data: ApplicationIntakeData): ApplicationIntakeData {
+  if (data.applicantRole !== "SELF") return data;
+  const name = _hasText(data.applicant?.name) ? data.applicant?.name : data.recipient?.name;
+  const nationalId = _hasText(data.applicant?.nationalId)
+    ? data.applicant?.nationalId
+    : data.recipient?.nationalId;
+  return {
+    ...data,
+    applicant: { ...data.applicant, ...(name ? { name } : {}), ...(nationalId ? { nationalId } : {}) },
+    recipient: { ...data.recipient, ...(name ? { name } : {}), ...(nationalId ? { nationalId } : {}) },
+  };
+}
+
 const _requiredFields: Array<[string, (data: ApplicationIntakeData) => unknown]> = [
   ["服務縣市", (data) => _hasText(data.jurisdiction)],
   ["申請人身分", (data) => _hasText(data.applicantRole)],
@@ -18,9 +31,9 @@ const _requiredFields: Array<[string, (data: ApplicationIntakeData) => unknown]>
   ["申請人姓名", (data) => _hasText(data.applicant?.name)],
   ["有效的申請人身分證字號或居留證號", (data) => _hasNationalId(data.applicant?.nationalId)],
   ["有效的申請人聯絡電話", (data) => _hasPhone(data.applicant?.phone)],
-  ["被照顧者姓名", (data) => _hasText(data.recipient?.name)],
+  ["被照顧者姓名", (data) => data.applicantRole === "SELF" || _hasText(data.recipient?.name)],
   ["有效的被照顧者身分證字號或居留證號", (data) =>
-    _hasNationalId(data.recipient?.nationalId)],
+    data.applicantRole === "SELF" || _hasNationalId(data.recipient?.nationalId)],
   ["有效的被照顧者出生日期（YYYY-MM-DD）", (data) =>
     _hasBirthDate(data.recipient?.birthDate)],
   ["被照顧者目前居住地址", (data) => _hasText(data.recipient?.currentAddress)],
@@ -54,6 +67,7 @@ export const optionalApplicationFields = [
 ] as const;
 
 export function getMissingApplicationFields(data: ApplicationIntakeData): string[] {
+  data = normalizeApplicationIntakeData(data);
   const missingFields = _requiredFields
     .filter(([, read]) => !read(data))
     .map(([label]) => label);

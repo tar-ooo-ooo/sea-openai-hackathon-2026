@@ -12,7 +12,11 @@ import type {
   ApplicationIntakeData,
   ApplicationIntakeProgress,
 } from "../../types/application-intake.ts";
-import { getMissingApplicationFields, getServiceCategory } from "./application-intake-rules.ts";
+import {
+  getMissingApplicationFields,
+  getServiceCategory,
+  normalizeApplicationIntakeData,
+} from "./application-intake-rules.ts";
 
 function _mergeData(
   current: ApplicationIntakeData,
@@ -100,12 +104,13 @@ export async function collectApplicationIntake(
 export async function getApplicationIntakeForReview(userId: string, intakeId: string) {
   const intake = await findApplicationIntake(intakeId, userId);
   if (intake?.status !== "collecting") return null;
+  const data = normalizeApplicationIntakeData(intake.data);
   return {
     id: intake.id,
     data: _pickDataFields(
-      intake.data,
+      data,
       intake.formReview?.prefillFields ??
-        _listDataFields(intake.data).filter((field) => !field.startsWith("consent.")),
+        _listDataFields(data).filter((field) => !field.startsWith("consent.")),
     ),
   };
 }
@@ -123,15 +128,19 @@ export async function prepareApplicationForm(
   if (!intake || intake.status !== "collecting") {
     throw new Error("Application intake not found");
   }
-  const missingFields = getMissingApplicationFields(intake.data);
+  const data = normalizeApplicationIntakeData(intake.data);
+  const missingFields = getMissingApplicationFields(data);
   if (missingFields.length > 0) return { status: "collecting", missingFields };
 
-  const availableFields = _listDataFields(intake.data).filter(
+  const availableFields = _listDataFields(data).filter(
     (field) => !field.startsWith("consent."),
   );
-  const review = await reviewApplicationForm(intake.data, availableFields);
+  const review = await reviewApplicationForm(data, availableFields);
   const availableFieldSet = new Set(availableFields);
-  const prefillFields = [...new Set(review.prefillFields)].filter((field) =>
+  const selfFields = data.applicantRole === "SELF"
+    ? ["applicantRole", "applicant.name", "applicant.nationalId", "recipient.name", "recipient.nationalId"]
+    : [];
+  const prefillFields = [...new Set([...review.prefillFields, ...selfFields])].filter((field) =>
     availableFieldSet.has(field),
   );
   if (prefillFields.length === 0) throw new Error("Form review selected no fields");
@@ -157,7 +166,7 @@ export async function submitApplicationIntake(
   }
 
   if (intake.status !== "collecting") return null;
-  const data = _mergeData(intake.data, patch);
+  const data = normalizeApplicationIntakeData(_mergeData(intake.data, patch));
   const missingFields = getMissingApplicationFields(data);
   if (missingFields.length > 0) return { status: "collecting", missingFields };
 
@@ -179,7 +188,7 @@ export async function updateApplicationPackage(
   const intake = await findApplicationIntake(intakeId, userId);
   if (!intake?.applicationPackageId) throw new Error("Application package not found");
 
-  const data = _mergeData(intake.data, patch);
+  const data = normalizeApplicationIntakeData(_mergeData(intake.data, patch));
   const missingFields = getMissingApplicationFields(data);
   if (missingFields.length > 0) return { status: "collecting", missingFields };
 
