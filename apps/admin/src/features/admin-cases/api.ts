@@ -10,6 +10,11 @@ export type AdminCaseListItem = {
 };
 
 export type AdminCaseDetail = AdminCaseListItem & {
+  intake: {
+    id: string;
+    updatedAt: string;
+    sections: Array<{ title: string; fields: Array<{ label: string; value: string }> }>;
+  } | null;
   services: Array<{
     id: string;
     position: number;
@@ -24,6 +29,17 @@ function _headers(cookie: string) {
   return { Cookie: cookie };
 }
 
+export async function loadAdminCases(cookie: string): Promise<AdminCaseListItem[]> {
+  const result = await fetchApi<unknown>("/api/admin/cases", {
+    cache: "no-store", headers: _headers(cookie),
+  });
+  if (!result || typeof result !== "object" || !("cases" in result)
+    || !Array.isArray(result.cases) || !result.cases.every(_isAdminCaseListItem)) {
+    throw new Error("Invalid admin cases response");
+  }
+  return result.cases;
+}
+
 export async function loadAdminCase(cookie: string, caseId: string): Promise<AdminCaseDetail | null> {
   try {
     const result = await fetchApi<unknown>(`/api/admin/cases/${caseId}`, {
@@ -35,7 +51,7 @@ export async function loadAdminCase(cookie: string, caseId: string): Promise<Adm
     }
     return result.case;
   } catch (error) {
-    if (error instanceof Error && error.message.endsWith("404")) return null;
+    if (error instanceof Error && /(?:400|404)$/.test(error.message)) return null;
     throw error;
   }
 }
@@ -52,6 +68,7 @@ function _isAdminCaseListItem(value: unknown): value is AdminCaseListItem {
 
 function _isAdminCaseDetail(value: unknown): value is AdminCaseDetail {
   return _isAdminCaseListItem(value)
+    && "intake" in value && _isIntake(value.intake)
     && "services" in value
     && Array.isArray(value.services)
     && value.services.every((service) => !!service && typeof service === "object"
@@ -61,4 +78,17 @@ function _isAdminCaseDetail(value: unknown): value is AdminCaseDetail {
       && "name" in service && typeof service.name === "string"
       && "reason" in service && typeof service.reason === "string"
       && "status" in service && typeof service.status === "string");
+}
+
+function _isIntake(value: unknown): value is AdminCaseDetail["intake"] {
+  return value === null || (!!value && typeof value === "object"
+    && "id" in value && typeof value.id === "string"
+    && "updatedAt" in value && typeof value.updatedAt === "string"
+    && "sections" in value && Array.isArray(value.sections)
+    && value.sections.every((section: unknown) => !!section && typeof section === "object"
+      && "title" in section && typeof section.title === "string"
+      && "fields" in section && Array.isArray(section.fields)
+      && section.fields.every((field: unknown) => !!field && typeof field === "object"
+        && "label" in field && typeof field.label === "string"
+        && "value" in field && typeof field.value === "string")));
 }

@@ -7,6 +7,7 @@ export async function listAdminTriageRows() {
     id: emergencyTriages.id,
     userId: emergencyTriages.userId,
     urgency: emergencyTriages.urgency,
+    message: emergencyTriages.message,
     createdAt: emergencyTriages.createdAt,
     name: profiles.name,
     phone: profiles.phone,

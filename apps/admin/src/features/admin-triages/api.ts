@@ -4,6 +4,7 @@ export type AdminTriage = {
   id: string;
   userId: string;
   urgency: "emergency" | "follow_up";
+  message: string | null;
   createdAt: string;
   name: string | null;
   phone: string | null;
@@ -27,5 +28,5 @@ function _isAdminTriage(value: unknown): value is AdminTriage {
   return typeof row.id === "string" && typeof row.userId === "string"
     && (row.urgency === "emergency" || row.urgency === "follow_up")
     && typeof row.createdAt === "string" && Number.isFinite(Date.parse(row.createdAt))
-    && [row.name, row.phone, row.area].every((field) => field === null || typeof field === "string");
+    && [row.message, row.name, row.phone, row.area].every((field) => field === null || typeof field === "string");
 }

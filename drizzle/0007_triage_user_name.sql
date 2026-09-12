@@ -1,0 +1,1 @@
+ALTER TABLE "emergency_triages" ADD COLUMN "user_name" varchar(100);

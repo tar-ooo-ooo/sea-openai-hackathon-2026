@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import AuthForm from "./_components/AuthForm";
 
@@ -9,6 +10,7 @@ export default function LoginPage() {
         <p className="lead">從說說生活中的困難開始，<br />一起整理適合家人的照顧協助。</p>
         <ol className="story-steps"><li>說說目前的照顧情況</li><li>整理需求與可考慮的服務</li><li>確認下一步，準備尋求協助</li></ol>
       </div>
+      <Image className="auth-illustration" src="/images/login-care-illustration.jpg" alt="照顧者陪伴長輩的插畫" width={1254} height={1254} priority />
       <p className="small">申請前的需求整理工具，不代表政府已受理或核定。</p>
     </section>
     <section className="auth-panel"><AuthForm /><Link className="quiet-link" href="/">← 返回首頁</Link></section>

@@ -1,6 +1,30 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { normalizeAssistantContent, readChatStream, readHistory, shouldSendOnEnter } from "./chat-events.ts";
+import { normalizeAssistantContent, readChatStream, readHistory, validateTriageResult, shouldSendOnEnter } from "./chat-events.ts";
+import { readFileSync } from "node:fs";
+
+test("危急分流結果須符合分級及寫入狀態契約", () => {
+  validateTriageResult({ urgency: "normal", saved: false, triageId: null });
+  for (const urgency of ["follow_up", "emergency"]) {
+    validateTriageResult({ urgency, saved: true, triageId: "00000000-0000-4000-8000-000000000001" });
+  }
+  for (const value of [null, {}, { urgency: "normal", saved: true, triageId: null },
+    { urgency: "emergency", saved: false, triageId: null }, { urgency: "follow_up", saved: true, triageId: "bad" }]) {
+    assert.throws(() => validateTriageResult(value));
+  }
+});
+
+test("聊天送出並行分流，不等待分類且失敗獨立處理", () => {
+  const source = readFileSync(new URL("./ChatPanel.tsx", import.meta.url), "utf8");
+  assert.match(source, /void fetchApi<unknown>\("\/api\/emergency-triages"/);
+  assert.doesNotMatch(source, /await fetchApi[^\n]*emergency-triages/);
+  const check = source.slice(source.indexOf('void fetchApi<unknown>("/api/emergency-triages"'), source.indexOf("const timeout ="));
+  assert.match(check, /credentials: "include"/);
+  assert.match(check, /AbortSignal.timeout\(35_000\)/);
+  assert.match(check, /then\(validateTriageResult\).catch/);
+  assert.match(check, /setTriageFailed\(true\)/);
+  assert.doesNotMatch(check, /setSending|setNeedsReload|controller.abort|await/);
+});
 
 test("舊版收整完成訊息不顯示內部模型名稱或裸露 Markdown", () => {
   const legacy = "**已收整完成。**Sol 已完成表單欄位分析，請先檢視資料。";

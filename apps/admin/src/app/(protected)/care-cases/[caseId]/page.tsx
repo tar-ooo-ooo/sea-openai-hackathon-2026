@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { loadCareCase } from "@/features/care-cases/api";
 import { AssessmentForm } from "./_components/AssessmentForm";
+import { CaseActions } from "./_components/CaseActions";
 
 function _formatDate(value: string) {
   return new Intl.DateTimeFormat("zh-TW", {
@@ -53,7 +54,7 @@ export default async function CareCasePage({
             <dt>接案時間</dt><dd>{_formatDate(careCase.acceptedAt)}</dd>
             <dt>優先程度</dt><dd>{careCase.priority}</dd>
             <dt>地區</dt><dd>{careCase.area ?? "待補充"}</dd>
-            <dt>來源</dt><dd>{careCase.sourceApplicationPackageId ? "既有聊天需求接案，不代表申請網站已正式送出" : "尚未記錄申請來源"}</dd>
+            <dt>來源</dt><dd>{careCase.sourceApplicationPackageId ? <Link href={`/cases/${careCase.sourceApplicationPackageId}`}>查看正式申請內容</Link> : "尚未記錄申請來源"}</dd>
           </dl>
         </article>
         <article className="detail-card">
@@ -65,8 +66,13 @@ export default async function CareCasePage({
               <dt>摘要</dt><dd>{careCase.latestAssessment.summary ?? "待補充"}</dd>
             </dl>
           ) : <p className="case-detail-note">尚未建立正式評估快照。</p>}
-          <AssessmentForm careCaseId={careCase.id} />
+          {careCase.status !== "closed" && <AssessmentForm careCaseId={careCase.id} />}
         </article>
+      </section>
+
+      <section className="content-section detail-card">
+        <header><h2>專員處理</h2></header>
+        <CaseActions key={careCase.status} careCase={careCase} />
       </section>
 
       <section className="detail-grid content-section">

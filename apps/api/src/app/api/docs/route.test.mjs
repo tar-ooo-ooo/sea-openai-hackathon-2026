@@ -17,7 +17,10 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
   assert.deepEqual(Object.keys(document.paths).sort(), [
     "/api/admin/care-cases",
     "/api/admin/care-cases/{caseId}",
+    "/api/admin/care-cases/{caseId}/actions",
     "/api/admin/care-cases/{caseId}/assessments",
+    "/api/admin/cases",
+    "/api/admin/cases/{caseId}",
     "/api/admin/triages",
     "/api/application-intakes/{id}",
     "/api/application-intakes/{id}/computer",
@@ -26,6 +29,7 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
     "/api/cases/{id}",
     "/api/chat/history",
     "/api/database/clear",
+    "/api/emergency-triages",
     "/api/health",
     "/api/profile",
     "/api/user-auth/login",
@@ -52,9 +56,14 @@ test("Swagger UI 使用本機 OpenAPI 文件並列出所有 API", async () => {
   assert.ok(document.paths["/api/admin/care-cases"].get.responses["200"]);
   assert.equal(document.paths["/api/admin/care-cases"].post, undefined);
   assert.equal(document.components.schemas.CreateCareCaseRequest, undefined);
+  assert.deepEqual(document.paths["/api/admin/cases"].get.security, [{ adminSession: [] }]);
+  const applicationDetail = document.paths["/api/admin/cases/{caseId}"].get;
+  assert.deepEqual(applicationDetail.security, [{ adminSession: [] }]);
+  assert.ok(applicationDetail.responses["200"].content["application/json"].schema.properties.case.allOf[1].properties.intake);
   assert.ok(document.paths["/api/admin/care-cases/{caseId}/assessments"].post.responses["201"]);
   assert.equal(document.components.securitySchemes.adminSession.name, "care_admin_session");
   const triages = document.paths["/api/admin/triages"].get;
   assert.deepEqual(triages.security, [{ adminSession: [] }]);
   assert.deepEqual(triages.responses["200"].content["application/json"].schema.properties.triages.items.properties.urgency.enum, ["emergency", "follow_up"]);
+  assert.deepEqual(triages.responses["200"].content["application/json"].schema.properties.triages.items.properties.message.type, ["string", "null"]);
 });
