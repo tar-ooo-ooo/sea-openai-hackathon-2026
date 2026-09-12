@@ -22,6 +22,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc -p apps/user/tsconfig.json --noEmit && tsc -p apps/admin/tsconfig.json --noEmit && tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/application/tsconfig.json --noEmit",
     "test": "node --test",
+    "seed:admin": "node scripts/seed-admin.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
