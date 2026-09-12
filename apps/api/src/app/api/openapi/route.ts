@@ -28,10 +28,30 @@ const _openApiDocument = {
     { name: "Health" },
     { name: "Database" },
     { name: "Auth" },
+    { name: "Admin" },
     { name: "Chat" },
     { name: "Cases" },
   ],
   paths: {
+    "/api/admin/triages": {
+      get: {
+        tags: ["Admin"], summary: "專員查詢緊急與追蹤分流紀錄",
+        description: "僅限專員。緊急優先，同程度依建立時間新至舊。聯絡資料來自使用者目前的 profile，非被照顧者或事件快照。沒有處理狀態、症狀或申請關聯。",
+        security: [{ adminSession: [] }],
+        responses: {
+          "200": { description: "成功；Cache-Control: no-store；無資料回傳空陣列", content: { "application/json": { schema: {
+            type: "object", required: ["triages"], properties: { triages: { type: "array", items: {
+              type: "object", required: ["id", "userId", "urgency", "createdAt", "name", "phone", "area"], properties: {
+                id: { type: "string", format: "uuid" }, userId: { type: "string", format: "uuid" },
+                urgency: { type: "string", enum: ["emergency", "follow_up"] }, createdAt: { type: "string", format: "date-time" },
+                name: { type: ["string", "null"] }, phone: { type: ["string", "null"] }, area: { type: ["string", "null"] },
+              },
+            } } },
+          } } } },
+          "401": { description: "未以專員身分登入" }, "403": { description: "來源不允許" }, "503": { description: "驗證或資料服務無法使用" },
+        },
+      },
+    },
     "/api/cases/{id}": _detailPath("case"),
     "/api/case-drafts/{id}": _detailPath("draft"),
     "/api/cases": {
@@ -205,6 +225,69 @@ const _openApiDocument = {
         },
       },
     },
+    "/api/admin/care-cases": {
+      get: {
+        tags: ["Admin"],
+        summary: "查詢既有已接案個案",
+        description: "目前僅提供 GET。聊天需求轉接案已停用；正式申請接案待 application 資料來源串接後另行提供。既有個案與評估資料保留。",
+        security: [{ adminSession: [] }],
+        responses: {
+          "200": { description: "Care cases" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
+    "/api/admin/care-cases/{caseId}": {
+      get: {
+        tags: ["Admin"],
+        summary: "Read a formal care case and its Case 360 read model",
+        security: [{ adminSession: [] }],
+        parameters: [{
+          name: "caseId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        }],
+        responses: {
+          "200": { description: "Care case" },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
+    "/api/admin/care-cases/{caseId}/assessments": {
+      post: {
+        tags: ["Admin"],
+        summary: "Save a care-case assessment snapshot",
+        security: [{ adminSession: [] }],
+        parameters: [{
+          name: "caseId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/CreateAssessmentRequest" } },
+          },
+        },
+        responses: {
+          "201": { description: "Assessment snapshot created" },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "413": { $ref: "#/components/responses/PayloadTooLarge" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
+      },
+    },
     "/chat": {
       post: {
         tags: ["Chat"],
@@ -247,6 +330,11 @@ const _openApiDocument = {
         type: "apiKey",
         in: "cookie",
         name: "care_user_session",
+      },
+      adminSession: {
+        type: "apiKey",
+        in: "cookie",
+        name: "care_admin_session",
       },
     },
     schemas: {
@@ -333,6 +421,15 @@ const _openApiDocument = {
         required: ["reply"],
         properties: { reply: { type: "string" } },
       },
+      CreateAssessmentRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["summary"],
+        properties: {
+          cmsLevel: { type: "integer", minimum: 0, maximum: 99 },
+          summary: { type: "string", minLength: 1, maxLength: 4000 },
+        },
+      },
       ErrorResponse: {
         type: "object",
         required: ["error"],
@@ -414,6 +511,14 @@ const _openApiDocument = {
       },
       InternalServerError: {
         description: "資料庫操作失敗",
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ErrorResponse" },
+          },
+        },
+      },
+      NotFound: {
+        description: "Resource not found",
         content: {
           "application/json": {
             schema: { $ref: "#/components/schemas/ErrorResponse" },

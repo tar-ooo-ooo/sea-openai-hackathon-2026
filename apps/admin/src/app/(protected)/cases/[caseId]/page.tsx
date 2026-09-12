@@ -26,9 +26,9 @@ export default async function AdminCasePage({
     <>
       <section className="case-header">
         <div className="case-identity">
-          <span className="case-avatar" aria-hidden="true">申</span>
+          <span className="case-avatar" aria-hidden="true">需</span>
           <div className="case-title">
-            <p className="eyebrow">APPLICATION CASE</p>
+            <p className="eyebrow">CHAT CARE NEEDS</p>
             <h1>{adminCase.targetName}</h1>
             <p className="case-summary">{adminCase.summary}</p>
           </div>
@@ -41,16 +41,16 @@ export default async function AdminCasePage({
 
       <section className="detail-grid">
         <article className="detail-card">
-          <header><h2>申請摘要</h2><span className="status-tag status-referral">唯讀</span></header>
+          <header><h2>聊天需求摘要</h2><span className="status-tag status-referral">非正式申請 · 唯讀</span></header>
           <dl>
-            <dt>送出時間</dt><dd>{_formatDate(adminCase.createdAt)}</dd>
+            <dt>需求整理時間</dt><dd>{_formatDate(adminCase.createdAt)}</dd>
             <dt>最後更新</dt><dd>{_formatDate(adminCase.updatedAt)}</dd>
             <dt>服務項目</dt><dd>{adminCase.serviceCount} 項</dd>
           </dl>
         </article>
         <article className="detail-card">
-          <header><h2>下一步</h2></header>
-          <p className="case-detail-note">正式的評估、照護計畫、媒合與追蹤尚未有資料表與 API 契約；目前僅供專員檢視使用者送出的需求。</p>
+          <header><h2>申請與接案</h2></header>
+          <p className="case-detail-note">這是聊天中整理的照顧需求，尚非正式申請，不能在此接案。正式申請收件功能啟用後，請由收件區檢視民眾已確認送出的內容。</p>
         </article>
       </section>
 
@@ -58,7 +58,7 @@ export default async function AdminCasePage({
         <div className="section-heading">
           <div>
             <p className="eyebrow">REQUESTED SERVICES</p>
-            <h2 id="requested-services-heading">服務需求</h2>
+            <h2 id="requested-services-heading">聊天整理的服務建議</h2>
           </div>
           <span>{adminCase.services.length} 項</span>
         </div>
