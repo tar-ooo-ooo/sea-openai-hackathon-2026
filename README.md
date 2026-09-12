@@ -31,7 +31,7 @@ npm run dev:admin
 npm run dev:api
 ```
 
-使用資料庫前，請將 `apps/api/.env.local` 的 `DATABASE_URL` 換成 Neon pooled connection string。前端加入 API 呼叫時，在各 app 的 `.env.local` 設定 `NEXT_PUBLIC_API_URL=http://localhost:3002`。
+使用資料庫前，請將 `apps/api/.env.local` 的 `DATABASE_URL` 換成 Neon pooled connection string。兩個前端透過共用 `fetchApi` 呼叫 `http://localhost:3002`。
 
 ## 指令
 

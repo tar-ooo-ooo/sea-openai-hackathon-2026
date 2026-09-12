@@ -65,6 +65,8 @@
 ```text
 repo/
 ├── apps/
+│   ├── _shared/
+│   │   └── fetch-api.ts            # user 與 admin 共用的 API client 實作
 │   ├── user/                       # 使用者前台，http://localhost:3000
 │   │   ├── public/
 │   │   └── src/
@@ -176,6 +178,13 @@ database / external API
 
 簡單的靜態頁面不必走完整分層；只有實際需要 handler、商業邏輯或資料存取時才建立對應資料夾與檔案。
 
+## 前端 API 呼叫
+
+- `apps/user` 與 `apps/admin` 呼叫共用 API 時，一律從 `@/lib/fetch-api` import `fetchApi`，不得各自直接封裝 `fetch`。
+- `apps/user/src/lib/fetch-api.ts` 與 `apps/admin/src/lib/fetch-api.ts` 只 re-export；唯一實作放在 `apps/_shared/fetch-api.ts`。
+- API base URL 統一由共用方法固定為 `http://localhost:3002`；功能程式碼不得自行組 API URL。
+- `fetchApi` 的 path 必須以 `/` 開頭，非 2xx response 由共用方法統一拋出錯誤；畫面層負責顯示適合使用者的訊息。
+
 ## 命名規則
 
 - TypeScript function、method、variable、props、state 使用小駝峰 `camelCase`，例如 `createUser`、`userCount`。
@@ -241,7 +250,7 @@ AI 每次修改完成後，必須在回覆完成前執行一次自我 review：
 
 ## 環境設定
 
-- `apps/user` 與 `apps/admin` 使用 `NEXT_PUBLIC_API_URL=http://localhost:3002` 呼叫共用 API。
+- `apps/user` 與 `apps/admin` 透過共用 `fetchApi` 呼叫 `http://localhost:3002`。
 - API 的資料庫連線只透過 `DATABASE_URL` 讀取，不得硬編碼或寫入 `AGENTS.md`。
 - secrets 只放 `apps/api/.env.local`，不得提交；Neon runtime 使用 pooled connection string。
 - API 若接受瀏覽器直接呼叫，開發環境只允許 `http://localhost:3000` 與 `http://localhost:3001`，production 使用明確 allowlist。

@@ -2,6 +2,7 @@
   "name": "sea-openai-hackathon-2026",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "npm run dev:user",
     "dev:user": "next dev apps/user --port 3000",
