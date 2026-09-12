@@ -70,8 +70,13 @@ export const applicationIntakeDataSchema = z.object({
 
 export type ApplicationIntakeData = z.infer<typeof applicationIntakeDataSchema>;
 
+export type ApplicationFormReview = {
+  prefillFields: string[];
+};
+
 export type ApplicationIntakeProgress = {
   status: "collecting" | "ready" | "packaged";
   missingFields: string[];
   applicationPackageId?: string;
+  formReview?: ApplicationFormReview;
 };

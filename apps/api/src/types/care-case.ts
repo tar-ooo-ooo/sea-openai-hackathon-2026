@@ -8,6 +8,12 @@ export type CareCaseStatus =
 
 export type CareCasePriority = "low" | "normal" | "high" | "urgent";
 
+export type CaseActionInput = {
+  action: "start" | "note" | "follow_up" | "close";
+  summary: string;
+  expectedStatus: CareCaseStatus;
+};
+
 export type CareCaseListItem = {
   id: string;
   sourceApplicationPackageId: string | null;

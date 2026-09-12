@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 
 import { loadCareCases, type CareCaseListItem } from "@/features/care-cases/api";
 import { loadAdminTriages, type AdminTriage } from "@/features/admin-triages/api";
+import { loadAdminCases, type AdminCaseListItem } from "@/features/admin-cases/api";
+import styles from "./application-inbox.module.css";
 
 function _formatDate(value: string) {
   return new Intl.DateTimeFormat("zh-TW", {
@@ -12,12 +14,29 @@ function _formatDate(value: string) {
   }).format(new Date(value));
 }
 
+const _stageLabel: Record<CareCaseListItem["status"], string> = {
+  new: "已收件",
+  assessing: "評估中",
+  plan_review: "計畫審核",
+  matching: "媒合中",
+  following_up: "追蹤中",
+  closed: "已結案",
+};
+
 export default async function Home() {
   const session = (await cookies()).get("care_admin_session");
   let careCases: CareCaseListItem[] = [];
   let triages: AdminTriage[] = [];
   let hasTriageError = false;
   let hasServiceError = false;
+  let applications: AdminCaseListItem[] = [];
+  let hasApplicationError = false;
+
+  try {
+    applications = await loadAdminCases(`${session?.name}=${session?.value}`);
+  } catch {
+    hasApplicationError = true;
+  }
 
   try {
     careCases = await loadCareCases(`${session?.name}=${session?.value}`);
@@ -62,48 +81,58 @@ export default async function Home() {
             ))}</div>}
       </section>
 
-      <section className="content-section case-workspace-section" aria-labelledby="application-cases-heading">
-        <div className="section-heading">
+      <section className={styles.inbox} aria-labelledby="application-cases-heading">
+        <div className={styles.heading}>
           <div>
             <p className="eyebrow">APPLICATION INBOX</p>
-            <h2 id="application-cases-heading">正式申請收件</h2>
+            <h2 id="application-cases-heading">申請資料列表</h2>
           </div>
-          <span className="status-tag status-referral">尚未啟用</span>
+          {!hasApplicationError && <span className={styles.count}>{applications.length} 筆申請</span>}
         </div>
-        <p className="empty-state">正式申請收件功能尚未啟用，目前無法查詢申請。啟用後只會顯示民眾已確認送出的申請，供專員檢視與接案。</p>
+        <p className={styles.notice}><strong>正式申請資料</strong><span>民眾確認送出後，系統會同時建立申請資料與正式案件；可先檢視完整內容，再從案件進入 Case 360 處理。</span></p>
+        {hasApplicationError ? <p className="empty-state">暫時無法取得申請資料，請重新整理。</p>
+          : applications.length === 0 ? <p className="empty-state">目前沒有已產生的申請資料。</p>
+            : <div className={styles.list}>{applications.map((application) => (
+              <article className={styles.card} key={application.id}>
+                <div className={styles.identity}>
+                  <span className={styles.avatar} aria-hidden="true">{Array.from(application.targetName)[0] || "申"}</span>
+                  <div><p className={styles.label}>被照顧者</p><h3>{application.targetName}</h3></div>
+                </div>
+                <p className={styles.summary}>{application.summary || "尚未提供申請摘要，請開啟明細查看表單。"}</p>
+                <div className={styles.meta}>
+                  <span className={styles.serviceCount}>服務需求 <strong>{application.serviceCount}</strong> 項</span>
+                  <span>更新於 <time dateTime={application.updatedAt}>{_formatDate(application.updatedAt)}</time></span>
+                </div>
+                <div className={styles.footer}>
+                  <span className={styles.pending}>已送出</span>
+                  <Link className={styles.detailLink} href={`/cases/${application.id}`} aria-label={`查看${application.targetName}的申請明細`}>查看完整明細<span aria-hidden="true">→</span></Link>
+                </div>
+              </article>
+            ))}</div>}
       </section>
-
       <section className="content-section" aria-labelledby="care-cases-heading">
         <div className="section-heading">
           <div>
             <p className="eyebrow">FORMAL CARE CASES</p>
-            <h2 id="care-cases-heading">已接案個案</h2>
+            <h2 id="care-cases-heading">正式申請案件</h2>
           </div>
           {!hasServiceError && <span>{careCases.length} 件</span>}
         </div>
         {hasServiceError ? <p className="empty-state">暫時無法取得正式個案資料。</p>
-          : careCases.length === 0 ? <p className="empty-state">目前沒有已接案個案。正式申請收件啟用後，才能新增接案。</p>
+          : careCases.length === 0 ? <p className="empty-state">目前沒有已送出的正式申請案件。</p>
             : <div className="inbox-list">{careCases.map((careCase) => (
               <article className="inbox-card" key={careCase.id}>
                 <div className="priority-mark priority-medium" aria-hidden="true" />
                 <div className="inbox-content">
-                  <div className="item-meta"><span className="status-tag status-review">{careCase.status}</span><span>{_formatDate(careCase.updatedAt)}</span></div>
+                  <div className="item-meta"><span className="status-tag status-review">{_stageLabel[careCase.status]}</span><span>{_formatDate(careCase.updatedAt)}</span></div>
                   <h3>{careCase.recipientName}</h3><p>{careCase.referralSummary}</p>
-                  <p className="case-service-count">{careCase.sourceApplicationPackageId ? "既有個案 · 聊天需求來源（非正式申請送出）" : "既有個案 · 來源待確認"}</p>
+                  <p className="case-service-count">{careCase.sourceApplicationPackageId ? "正式申請來源" : "既有案件 · 來源待確認"}</p>
                 </div>
                 <Link className="text-link" href={`/care-cases/${careCase.id}`}>開啟 Case 360<span aria-hidden="true">→</span></Link>
               </article>
             ))}</div>}
       </section>
 
-      <section className="next-step-card">
-        <div>
-          <p className="eyebrow">DEMO FLOW</p>
-          <h2>繼續查看後台 Demo</h2>
-          <p>Demo 保留用來討論 Care 360、照護計畫、媒合與追蹤的介面流程，尚未連結正式資料。</p>
-        </div>
-        <Link className="primary-link" href="/cases/demo">開啟 Demo <span aria-hidden="true">→</span></Link>
-      </section>
     </>
   );
 }

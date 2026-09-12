@@ -12,6 +12,7 @@ import {
 import {
   collectApplicationIntake,
   getOrCreateApplicationIntake,
+  prepareApplicationForm,
   updateApplicationPackage,
 } from "../application-intakes/collect-application-intake.ts";
 import {
@@ -87,8 +88,15 @@ export async function sendMessage(
         data: intake.data,
         missingFields: getMissingApplicationFields(intake.data),
         optionalFields: optionalApplicationFields,
+        applicationUrl: `http://localhost:3003/apply/${intake.id}`,
         collect: (patch) =>
           collectApplicationIntake(intake.userId, intake.id, intake.data, patch),
+        prepare: async () => {
+          onProgress?.({ id: "form", label: "正在整理申請資料", status: "active" });
+          const result = await prepareApplicationForm(intake.userId, intake.id);
+          onProgress?.({ id: "form", label: "已完成申請資料整理", status: "complete" });
+          return result;
+        },
         update: (patch) => updateApplicationPackage(intake.userId, intake.id, patch),
       },
       history,

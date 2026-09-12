@@ -37,9 +37,11 @@ npm run dev:application
 
 `apps/application` 是獨立 Next.js App Router app，包含服務說明、申請表及案件進度頁面。已支援以民眾 session 透過 `GET /api/application-intakes/{id}` 讀取既有草稿，確認表單後以 POST 建立案件；本機表單與部分案件畫面仍使用 `localStorage`，尚非完整的伺服器案件管理流程。Demo 請使用虛構資料。
 
-後台工作台透過 `GET /api/admin/triages` 顯示 `emergency_triages`，緊急優先、同程度依時間新至舊，並連結目前的使用者姓名、電話與地區；僅專員可讀、不快取。此表目前沒有症狀、處理狀態或被照顧者／申請關聯，不會自動配對申請。`application_packages` 同時保留舊聊天需求與新表單確認後建立的案件，不能只依資料表名稱判定既有紀錄是否正式送出；後台正式收件仍待串接。
+後台工作台透過 `GET /api/admin/triages` 顯示 `emergency_triages`，緊急優先、同程度依時間新至舊，並連結目前的使用者姓名、電話與地區；僅專員可讀、不快取。此表目前沒有症狀、處理狀態或被照顧者／申請關聯，不會自動配對申請。正式送出的申請則由 `application_packages` 與對應的 `care_cases` 提供給後台處理。
 
-後台「正式申請收件」目前顯示尚未啟用，不查詢聊天需求、不以空清單代表已查無正式申請。既有需求明細只供唯讀參考，送出來源仍待核對，已移除接案按鈕與 `POST /api/admin/care-cases`（回傳 405）；GET 個案查詢與評估儲存仍保留。既有聊天來源個案標示來源，不刪除歷史資料。後台正式收件串接時，收件與接案必須由 API 驗證已送出紀錄、申請版本及防重複接案；資料表關聯待契約確認後再以 migration 調整，現有 `source_application_package_id` 僅代表舊聊天來源。
+後台首頁「申請資料列表」透過 `GET /api/admin/cases` 顯示已產生的 `application_packages`，不含尚未產生申請資料的收集中草稿。點選「查看完整明細」進入 `/cases/{caseId}`，透過專員 API 讀取摘要、服務需求及同一使用者的關聯 `application_intakes.data`（申請人、被照顧者、照顧狀況、補充資料、資格預檢及同意事項）。沒有關聯表單時明確提示；缺漏欄位顯示「尚未提供」。API 僅專員可讀，回應不快取。
+
+民眾在 application 確認送出時，API 會在同一批資料庫操作中建立 `application_packages`、服務需求與對應的 `care_cases`；新個案狀態為 `new`。`source_application_package_id` 是兩者的一對一關聯，唯一索引避免同一申請重複建立個案；migration `0005_backfill-care-cases.sql` 會為既有申請資料補齊個案。後台可查看完整申請，並由正式申請案件進入 Case 360 處理。
 
 所有本機環境變數集中在專案根目錄 `.env.local`。使用資料庫前，請將其中的 `DATABASE_URL` 換成 Neon pooled connection string。user 與 admin 透過共用 `fetchApi` 呼叫 `http://localhost:3002`；application 已串接既有草稿的讀取與確認送出 API。
 

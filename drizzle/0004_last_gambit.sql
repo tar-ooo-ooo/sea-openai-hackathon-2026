@@ -1,0 +1,1 @@
+ALTER TABLE "application_intakes" ADD COLUMN "form_review" jsonb;

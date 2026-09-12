@@ -36,7 +36,7 @@ test("單筆 method 傳入 owner 與 ID，案件和草稿不混淆", async () =>
 test("詳情只輸出照顧描述白名單，案件依本人與連結 ID 取草稿", async () => {
   const raw = { recipient: { nationalId: "private-id", currentAddress: "private-address" }, applicant: { phone: "private-phone" }, careContext: { bathing: "需要協助", goal: "希望有人協助" } };
   const date = new Date();
-  const read = async () => ({ drafts: [], packages: [{ id: _id, targetName: "測試", summary: "摘要", createdAt: date, updatedAt: date, service: null }] });
+  const read = async () => ({ drafts: [], packages: [{ id: _id, targetName: "測試", summary: "摘要", caseStatus: "new", createdAt: date, updatedAt: date, service: null }] });
   const result = await getUserCase("owner-a", _id, "case", read, async (owner, id) => {
     assert.equal(owner, "owner-a"); assert.equal(id, _id); return raw;
   });

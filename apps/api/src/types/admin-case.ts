@@ -18,4 +18,9 @@ export type AdminCaseService = {
 
 export type AdminCaseDetail = AdminCaseListItem & {
   services: AdminCaseService[];
+  intake: {
+    id: string;
+    updatedAt: string;
+    sections: Array<{ title: string; fields: Array<{ label: string; value: string }> }>;
+  } | null;
 };

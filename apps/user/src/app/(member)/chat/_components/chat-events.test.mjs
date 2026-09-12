@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readChatStream, readHistory, shouldSendOnEnter } from "./chat-events.ts";
+import { normalizeAssistantContent, readChatStream, readHistory, shouldSendOnEnter } from "./chat-events.ts";
+
+test("舊版收整完成訊息不顯示內部模型名稱或裸露 Markdown", () => {
+  const legacy = "**已收整完成。**Sol 已完成表單欄位分析，請先檢視資料。";
+  assert.equal(normalizeAssistantContent(legacy), "資料已收整完成。請先檢視資料。");
+  assert.equal(normalizeAssistantContent("**資料已收整完成。**請使用申請入口。"), "資料已收整完成。請使用申請入口。");
+  assert.equal(readHistory({ messages: [{ role: "assistant", content: legacy }] })[0].content, "資料已收整完成。請先檢視資料。");
+});
 
 test("申請動作在串流與歷史保留，使用者訊息和無效動作不產生入口", async () => {
   const action = { type: "application_review", caseId: "00000000-0000-4000-8000-000000000001" };
