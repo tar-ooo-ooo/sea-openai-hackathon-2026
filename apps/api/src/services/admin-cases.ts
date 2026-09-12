@@ -1,7 +1,7 @@
-import { asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 
 import { db } from "./db/client.ts";
-import { applicationPackages, applicationServices } from "./db/schema.ts";
+import { applicationIntakes, applicationPackages, applicationServices } from "./db/schema.ts";
 
 export async function listAdminCases() {
   return db
@@ -56,5 +56,16 @@ export async function findAdminCaseById(caseId: string) {
     .where(eq(applicationServices.applicationPackageId, caseId))
     .orderBy(asc(applicationServices.position));
 
-  return { ...applicationPackage, services };
+  const [intake] = await db
+    .select({ id: applicationIntakes.id, data: applicationIntakes.data, updatedAt: applicationIntakes.updatedAt })
+    .from(applicationIntakes)
+    .innerJoin(applicationPackages, and(
+      eq(applicationIntakes.applicationPackageId, applicationPackages.id),
+      eq(applicationIntakes.userId, applicationPackages.userId),
+    ))
+    .where(eq(applicationPackages.id, caseId))
+    .orderBy(desc(applicationIntakes.updatedAt), asc(applicationIntakes.id))
+    .limit(1);
+
+  return { ...applicationPackage, services, intake: intake ?? null };
 }

@@ -39,7 +39,9 @@ npm run dev:application
 
 後台工作台透過 `GET /api/admin/triages` 顯示 `emergency_triages`，緊急優先、同程度依時間新至舊，並連結目前的使用者姓名、電話與地區；僅專員可讀、不快取。此表目前沒有症狀、處理狀態或被照顧者／申請關聯，不會自動配對申請。`application_packages` 同時保留舊聊天需求與新表單確認後建立的案件，不能只依資料表名稱判定既有紀錄是否正式送出；後台正式收件仍待串接。
 
-後台「正式申請收件」目前顯示尚未啟用，不查詢聊天需求、不以空清單代表已查無正式申請。既有需求明細只供唯讀參考，送出來源仍待核對，已移除接案按鈕與 `POST /api/admin/care-cases`（回傳 405）；GET 個案查詢與評估儲存仍保留。既有聊天來源個案標示來源，不刪除歷史資料。後台正式收件串接時，收件與接案必須由 API 驗證已送出紀錄、申請版本及防重複接案；資料表關聯待契約確認後再以 migration 調整，現有 `source_application_package_id` 僅代表舊聊天來源。
+後台首頁「申請資料列表」透過 `GET /api/admin/cases` 顯示已產生的 `application_packages`，不含尚未產生申請資料的收集中草稿。點選「查看完整明細」進入 `/cases/{caseId}`，透過專員 API 讀取摘要、服務需求及同一使用者的關聯 `application_intakes.data`（申請人、被照顧者、照顧狀況、補充資料、資格預檢及同意事項）。沒有關聯表單時明確提示；缺漏欄位顯示「尚未提供」。API 僅專員可讀，回應不快取。
+
+正式送出標記由另一項工作處理；目前列表與明細一律標示「送出狀態待確認」，內容為目前資料而非送出快照，不以建立時間、服務狀態或同意事項推定已正式送出。接案按鈕與 `POST /api/admin/care-cases` 仍停用（405）；GET 個案查詢與評估儲存保留。之後正式收件與接案仍須由 API 驗證送出紀錄、申請版本及防重複接案。本次只啟用唯讀列表與明細，不修改申請網站、民眾前台、送出 API 或資料庫 schema。
 
 所有本機環境變數集中在專案根目錄 `.env.local`。使用資料庫前，請將其中的 `DATABASE_URL` 換成 Neon pooled connection string。user 與 admin 透過共用 `fetchApi` 呼叫 `http://localhost:3002`；application 已串接既有草稿的讀取與確認送出 API。
 

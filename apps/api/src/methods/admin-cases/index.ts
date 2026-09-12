@@ -1,5 +1,6 @@
 import type { AdminCaseDetail, AdminCaseListItem } from "../../types/admin-case.ts";
 import { findAdminCaseById, listAdminCases } from "../../services/admin-cases.ts";
+import { formatApplicationSections } from "./application-sections.ts";
 
 function _toListItem(applicationPackage: {
   id: string;
@@ -10,7 +11,10 @@ function _toListItem(applicationPackage: {
   updatedAt: Date;
 }): AdminCaseListItem {
   return {
-    ...applicationPackage,
+    id: applicationPackage.id,
+    targetName: applicationPackage.targetName,
+    summary: applicationPackage.summary,
+    serviceCount: applicationPackage.serviceCount,
     createdAt: applicationPackage.createdAt.toISOString(),
     updatedAt: applicationPackage.updatedAt.toISOString(),
   };
@@ -27,5 +31,10 @@ export async function getAdminCase(caseId: string): Promise<AdminCaseDetail | nu
   return {
     ..._toListItem({ ...applicationPackage, serviceCount: applicationPackage.services.length }),
     services: applicationPackage.services,
+    intake: applicationPackage.intake ? {
+      id: applicationPackage.intake.id,
+      updatedAt: applicationPackage.intake.updatedAt.toISOString(),
+      sections: formatApplicationSections(applicationPackage.intake.data),
+    } : null,
   };
 }

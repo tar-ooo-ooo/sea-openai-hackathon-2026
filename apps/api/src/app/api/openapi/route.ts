@@ -34,6 +34,50 @@ const _openApiDocument = {
     { name: "Applications" },
   ],
   paths: {
+    "/api/admin/cases": {
+      get: {
+        tags: ["Admin"], summary: "專員查詢已產生的申請資料",
+        description: "不含收集中且尚無申請資料的草稿。現有資料未區分正式送出，僅供唯讀參考，不可據此接案。",
+        security: [{ adminSession: [] }],
+        responses: {
+          "200": { description: "申請列表；Cache-Control: no-store", content: { "application/json": { schema: {
+            type: "object", required: ["cases"], properties: { cases: { type: "array", items: { $ref: "#/components/schemas/AdminApplication" } } },
+          } } } },
+          "401": { description: "未登入專員帳號" }, "403": { description: "非專員" }, "503": { description: "服務暫時無法使用" },
+        },
+      },
+    },
+    "/api/admin/cases/{caseId}": {
+      get: {
+        tags: ["Admin"], summary: "專員查詢完整申請內容",
+        description: "包含摘要、服務與目前完整表單（非正式送出快照）。沒有關聯表單時 intake 為 null；缺漏欄位顯示尚未提供。",
+        security: [{ adminSession: [] }],
+        parameters: [{ name: "caseId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": { description: "申請明細；Cache-Control: no-store", content: { "application/json": { schema: {
+            type: "object", required: ["case"], properties: { case: { allOf: [
+              { $ref: "#/components/schemas/AdminApplication" },
+              { type: "object", required: ["services", "intake"], properties: {
+                services: { type: "array", items: { type: "object", required: ["id", "position", "category", "name", "reason", "status"], properties: {
+                  id: { type: "string", format: "uuid" }, position: { type: "integer" }, category: { type: "string" },
+                  name: { type: "string" }, reason: { type: "string" }, status: { type: "string" },
+                } } },
+                intake: { oneOf: [{ type: "null" }, { type: "object", required: ["id", "updatedAt", "sections"], properties: {
+                  id: { type: "string", format: "uuid" }, updatedAt: { type: "string", format: "date-time" },
+                  sections: { type: "array", items: { type: "object", required: ["title", "fields"], properties: {
+                    title: { type: "string" }, fields: { type: "array", items: { type: "object", required: ["label", "value"], properties: {
+                      label: { type: "string" }, value: { type: "string" },
+                    } } },
+                  } } },
+                } }] },
+              } },
+            ] } },
+          } } } },
+          "400": { description: "無效的申請編號" }, "401": { description: "未登入專員帳號" },
+          "403": { description: "非專員" }, "404": { description: "找不到申請" }, "503": { description: "服務暫時無法使用" },
+        },
+      },
+    },
     "/api/application-intakes/{id}": {
       get: {
         tags: ["Applications"], summary: "讀取 Agent 已收整的申請草稿",
@@ -409,6 +453,13 @@ const _openApiDocument = {
       },
     },
     schemas: {
+      AdminApplication: {
+        type: "object", required: ["id", "targetName", "summary", "serviceCount", "createdAt", "updatedAt"],
+        properties: {
+          id: { type: "string", format: "uuid" }, targetName: { type: "string" }, summary: { type: "string" },
+          serviceCount: { type: "integer" }, createdAt: { type: "string", format: "date-time" }, updatedAt: { type: "string", format: "date-time" },
+        },
+      },
       ApplicationIntakeData: {
         type: "object", additionalProperties: false,
         properties: {

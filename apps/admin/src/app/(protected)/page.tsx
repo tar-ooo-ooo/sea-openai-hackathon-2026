@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 import { loadCareCases, type CareCaseListItem } from "@/features/care-cases/api";
 import { loadAdminTriages, type AdminTriage } from "@/features/admin-triages/api";
+import { loadAdminCases, type AdminCaseListItem } from "@/features/admin-cases/api";
 
 function _formatDate(value: string) {
   return new Intl.DateTimeFormat("zh-TW", {
@@ -18,6 +19,14 @@ export default async function Home() {
   let triages: AdminTriage[] = [];
   let hasTriageError = false;
   let hasServiceError = false;
+  let applications: AdminCaseListItem[] = [];
+  let hasApplicationError = false;
+
+  try {
+    applications = await loadAdminCases(`${session?.name}=${session?.value}`);
+  } catch {
+    hasApplicationError = true;
+  }
 
   try {
     careCases = await loadCareCases(`${session?.name}=${session?.value}`);
@@ -66,11 +75,24 @@ export default async function Home() {
         <div className="section-heading">
           <div>
             <p className="eyebrow">APPLICATION INBOX</p>
-            <h2 id="application-cases-heading">正式申請收件</h2>
+            <h2 id="application-cases-heading">申請資料列表</h2>
           </div>
-          <span className="status-tag status-referral">尚未啟用</span>
+          {!hasApplicationError && <span>{applications.length} 筆</span>}
         </div>
-        <p className="empty-state">正式申請收件功能尚未啟用，目前無法查詢申請。啟用後只會顯示民眾已確認送出的申請，供專員檢視與接案。</p>
+        <p className="case-detail-note">目前顯示已產生的申請資料，不含收集中草稿。正式送出標記尚待串接，以下資料皆為「送出狀態待確認」，僅供檢視，尚不能接案。</p>
+        {hasApplicationError ? <p className="empty-state">暫時無法取得申請資料，請重新整理。</p>
+          : applications.length === 0 ? <p className="empty-state">目前沒有已產生的申請資料。</p>
+            : <div className="inbox-list">{applications.map((application) => (
+              <article className="inbox-card" key={application.id}>
+                <div className="inbox-content">
+                  <div className="item-meta"><span className="status-tag status-referral">送出狀態待確認</span><span>資料更新：{_formatDate(application.updatedAt)}</span></div>
+                  <h3>{application.targetName}</h3>
+                  <p>{application.summary}</p>
+                  <p className="case-service-count">服務需求：{application.serviceCount} 項</p>
+                </div>
+                <Link className="text-link" href={`/cases/${application.id}`} aria-label={`查看${application.targetName}的申請明細`}>查看完整明細<span aria-hidden="true">→</span></Link>
+              </article>
+            ))}</div>}
       </section>
 
       <section className="content-section" aria-labelledby="care-cases-heading">
