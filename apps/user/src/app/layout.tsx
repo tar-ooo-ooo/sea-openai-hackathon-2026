@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Sea × OpenAI Hackathon 2026",
-  description: "Next.js development starter for the Sea × OpenAI Hackathon 2026.",
+  description: "使用者前台",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

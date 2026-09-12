@@ -19,6 +19,8 @@
 ## 技術基線
 
 - 使用 Next.js App Router、React、TypeScript。
+- 使用者前台與後台專員介面是兩個獨立 Next.js app；開發環境分別使用 port `3000` 與 `3001`。
+- 兩個前端共用同一個 API app，開發環境使用 port `3002`；前端不得直接存取資料庫。
 - 資料庫使用 PostgreSQL（Neon），ORM 使用 Drizzle。
 - 預設使用 `drizzle-orm/neon-http`；只有需要 session 或 interactive transaction 時才改用 Neon WebSocket driver。
 - 優先使用 Server Components；只有需要瀏覽器 API、互動或 client-side state 時才加 `"use client"`。
@@ -62,60 +64,54 @@
 
 ```text
 repo/
+├── apps/
+│   ├── user/                       # 使用者前台，http://localhost:3000
+│   │   ├── public/
+│   │   └── src/
+│   │       ├── app/                # pages、layouts、route-local components
+│   │       ├── components/         # 此 app 內共用 UI
+│   │       ├── features/           # 此 app 內跨 routes 的功能 UI
+│   │       ├── hooks/
+│   │       ├── providers/
+│   │       ├── lib/
+│   │       └── types/
+│   ├── admin/                      # 後台專員介面，http://localhost:3001
+│   │   ├── public/
+│   │   └── src/
+│   │       ├── app/
+│   │       ├── components/
+│   │       ├── features/
+│   │       ├── hooks/
+│   │       ├── providers/
+│   │       ├── lib/
+│   │       └── types/
+│   └── api/                        # 共用 API，http://localhost:3002
+│       └── src/
+│           ├── app/api/<feature>/route.ts
+│           ├── functions/<feature>/
+│           ├── methods/<feature>/
+│           ├── services/
+│           │   └── db/
+│           │       ├── client.ts
+│           │       └── schema.ts
+│           ├── lib/
+│           └── types/
 ├── docs/
 │   └── project-reference.pptx      # Google Slides 的離線副本
 ├── drizzle/                        # Drizzle 產生的 SQL migrations
-├── public/                         # 靜態檔案
-├── src/
-│   ├── app/                        # Next.js routes、layouts、pages
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   ├── loading.tsx             # 需要時建立
-│   │   ├── error.tsx               # 需要時建立
-│   │   ├── globals.css
-│   │   ├── (public)/               # 不影響 URL 的 route group
-│   │   │   └── example/
-│   │   │       ├── page.tsx
-│   │   │       └── _components/    # 只供此 route 使用
-│   │   ├── (protected)/            # 需要登入的 routes
-│   │   └── api/
-│   │       └── example/
-│   │           └── route.ts        # 薄入口，交給 functions
-│   ├── components/
-│   │   ├── ui/                     # 跨功能共用的基礎 UI
-│   │   └── layouts/                # Header、Sidebar 等共用版型
-│   ├── features/                   # 跨 routes 共用的功能 UI
-│   │   └── example/
-│   │       ├── components/
-│   │       ├── hooks/
-│   │       └── types.ts
-│   ├── functions/                  # handlers
-│   │   └── example/
-│   │       └── create-example.ts
-│   ├── methods/                    # 商業邏輯與流程編排
-│   │   └── example/
-│   │       └── create-example.ts
-│   ├── services/                   # 資料庫與外部服務互動
-│   │   ├── db/
-│   │   │   ├── client.ts           # 唯一的 Drizzle client
-│   │   │   └── schema.ts           # PostgreSQL schema
-│   │   └── examples.ts             # example 的 queries
-│   ├── hooks/                      # 真正跨功能共用的 React hooks
-│   ├── providers/                  # 全域 Context providers
-│   ├── lib/                        # 無業務語意的共用純函式
-│   └── types/                      # 跨模組共用型別
 ├── .env.example
 ├── drizzle.config.ts
-├── next.config.ts
-├── package.json
+├── package.json                    # 三個 app 的共用 dependencies 與 scripts
 └── tsconfig.json
 ```
 
-- `app/`：只處理 Next.js 路由與畫面；`route.ts`、Server Action 應立即交給 `functions/`。
-- `components/`：確實被重用或能讓頁面明顯更易讀的元件。
+- `apps/user`：只放使用者可見的頁面與互動，不得 import `apps/api` 內部程式碼。
+- `apps/admin`：只放專員工作介面；畫面隱藏不是權限控管，專員權限仍由 API 驗證。
+- `apps/api/src/app/api`：共用 API 薄入口，立即交給 `functions/`。
 - `functions/`：handler 層。解析及驗證 request、呼叫 method、轉換 response；不得放商業邏輯或直接查資料庫。
-- `methods/`：邏輯層。處理規則、權限與流程編排；透過 service 取得或寫入資料，不依賴 HTTP/Next.js response。
-- `services/`：資料層。只負責資料庫 query、transaction 與外部 API；不得決定商業流程。
+- `methods/`：邏輯層。處理規則、角色權限與流程編排；透過 service 取得或寫入資料，不依賴 HTTP/Next.js response。
+- `services/`：資料層。只存在於 API app，負責資料庫 query、transaction 與外部 API；不得決定商業流程。
+- `components/`：只放確實被同一個前端 app 重用，或能讓頁面明顯更易讀的元件。
 - `lib/`：無業務語意的共用純函式；不要建立只有一個呼叫者的 helper。
 - `types/`：只放跨模組共用型別；區域型別留在使用它的檔案旁。
 
@@ -124,15 +120,15 @@ repo/
 ```text
 元件或 hook
 ├── 只供單一路由使用
-│   └── src/app/<route>/_components 或 _hooks
+│   └── apps/<frontend>/src/app/<route>/_components 或 _hooks
 ├── 同一功能、跨多個路由使用
-│   └── src/features/<feature>/components 或 hooks
-├── 跨功能共用
-│   ├── 基礎 UI       → src/components/ui
-│   ├── 頁面版型      → src/components/layouts
-│   └── React hook    → src/hooks
+│   └── apps/<frontend>/src/features/<feature>/components 或 hooks
+├── 同一前端 app 跨功能共用
+│   ├── 基礎 UI       → apps/<frontend>/src/components/ui
+│   ├── 頁面版型      → apps/<frontend>/src/components/layouts
+│   └── React hook    → apps/<frontend>/src/hooks
 └── 全站 Context
-    └── src/providers
+    └── apps/<frontend>/src/providers
 ```
 
 - 預設使用 Server Component；需要互動、瀏覽器 API 或 client-side state 才使用 Client Component。
@@ -143,9 +139,9 @@ repo/
 ## 請求與資料流
 
 ```text
-目錄層級：三者都是 src/ 直下的同層資料夾
+API app 內的三層目錄
 
-src/
+apps/api/src/
 ├── functions/<feature>/             # handlers
 ├── methods/<feature>/               # 商業邏輯
 └── services/<feature>.ts            # 資料庫與外部 API
@@ -154,7 +150,9 @@ src/
 ```text
 呼叫方向：以下是執行流程，不是資料夾包含關係
 
-Next.js page / route.ts / Server Action
+apps/user 或 apps/admin
+↓ HTTP request
+apps/api/src/app/api/<feature>/route.ts
 ↓
 functions/<feature>/                 # 驗證輸入、呼叫 method、整理輸出
 ↓
@@ -167,11 +165,13 @@ database / external API
 
 ```text
 依賴規則
-├── app          → functions、React components
-├── functions    → methods
-├── methods      → services
-├── services     → database / external API
-└── 下層         ✕ 不得反向 import 上層
+├── user／admin       → 共用 API（僅透過 HTTP）
+├── api route         → functions
+├── functions         → methods
+├── methods           → services
+├── services          → database / external API
+├── user／admin       ✕ 不得直接 import API、service 或 database code
+└── 下層              ✕ 不得反向 import 上層
 ```
 
 簡單的靜態頁面不必走完整分層；只有實際需要 handler、商業邏輯或資料存取時才建立對應資料夾與檔案。
@@ -241,8 +241,10 @@ AI 每次修改完成後，必須在回覆完成前執行一次自我 review：
 
 ## 環境設定
 
-- 資料庫連線只透過 `DATABASE_URL` 讀取，不得硬編碼或寫入 `AGENTS.md`。
-- secrets 只放 `.env.local`，不得提交；Neon runtime 使用 pooled connection string。
+- `apps/user` 與 `apps/admin` 使用 `NEXT_PUBLIC_API_URL=http://localhost:3002` 呼叫共用 API。
+- API 的資料庫連線只透過 `DATABASE_URL` 讀取，不得硬編碼或寫入 `AGENTS.md`。
+- secrets 只放 `apps/api/.env.local`，不得提交；Neon runtime 使用 pooled connection string。
+- API 若接受瀏覽器直接呼叫，開發環境只允許 `http://localhost:3000` 與 `http://localhost:3001`，production 使用明確 allowlist。
 - 新增必要環境變數時，同步更新 `.env.example`，只放安全的範例值。
 - 僅有明確允許公開的變數才能使用 `NEXT_PUBLIC_` 前綴。
 
@@ -250,11 +252,11 @@ AI 每次修改完成後，必須在回覆完成前執行一次自我 review：
 
 ```text
 drizzle.config.ts
-├── schema      → ./src/services/db/schema.ts
+├── schema      → ./apps/api/src/services/db/schema.ts
 ├── migrations  → ./drizzle
 └── credentials → process.env.DATABASE_URL
 
-src/services/
+apps/api/src/services/
 ├── db/
 │   ├── client.ts                    # 建立並 export db
 │   └── schema.ts                    # tables、relations、indexes
@@ -289,7 +291,8 @@ src/services/
 
 ## 完成條件
 
-- 開發伺服器可啟動，首頁可正常載入。
+- 使用者前台、後台專員介面與共用 API 可分別在 ports `3000`、`3001`、`3002` 啟動。
+- 兩個前端都只能透過共用 API 存取後端資料，角色權限由 API 驗證。
 - lint 與 TypeScript 檢查通過。
 - 沒有提交 secrets、產物或未使用依賴。
 - README 記載實際可用的安裝、開發、測試與 build 指令。
