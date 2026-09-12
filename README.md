@@ -44,7 +44,18 @@ npm run db:generate
 npm run db:migrate
 ```
 
-目前只有 API health check，尚無商業功能或資料表。新增 `apps/api/src/services/db/schema.ts` 後先執行 `npm run db:generate` 並檢查 SQL，再以 `npm run db:migrate` 套用。
+## 資料庫 Schema
+
+| 資料表 | 用途 |
+| --- | --- |
+| `users` | 帳號、密碼雜湊與必填身份（`user`／`admin`） |
+| `profiles` | 使用者姓名、出生日期、地區與電話；每個帳號一筆 |
+| `chat_messages` | 使用者與 AI 的聊天紀錄，以及可選的申請流程連結 |
+| `application_packages` | 每位使用者、每個照顧對象的申請案件與需求摘要 |
+| `application_services` | 案件內有順序的服務建議、原因及申請狀態 |
+| `emergency_triages` | `follow_up`／`emergency` 分流事件與時間，不保存原始健康描述 |
+
+Schema 位於 `apps/api/src/services/db/schema.ts`，migration 位於 `drizzle/`。確認 SQL 後以 `npm run db:migrate` 套用。
 
 ## 結構
 
