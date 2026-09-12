@@ -1,3 +1,22 @@
+function _detailPath(kind: "case" | "draft") {
+  return { get: {
+    tags: ["Cases"], summary: kind === "case" ? "查詢本人單筆案件" : "查詢本人收集中草稿",
+    description: "只回傳本人資料；他人或不存在的 ID 一律 404。草稿完成轉為案件後，原收集中草稿端點回傳 404。",
+    security: [{ userSession: [] }],
+    parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+    responses: {
+      "200": { description: "詳細資料；Cache-Control: no-store", content: { "application/json": { schema: {
+        type: "object", required: ["kind", "item"], properties: {
+          kind: { type: "string", const: kind }, item: { $ref: `#/components/schemas/${kind === "case" ? "UserCase" : "CaseDraft"}` },
+        },
+      } } } },
+      "400": { description: "ID 格式錯誤或包含不支援的 query" },
+      "401": { description: "未登入" }, "403": { description: "角色或 CORS 來源不允許" },
+      "404": { description: "找不到此案件或草稿" }, "503": { description: "無法驗證或讀取資料" },
+    },
+  } };
+}
+
 const _openApiDocument = {
   openapi: "3.1.0",
   info: {
@@ -9,8 +28,30 @@ const _openApiDocument = {
     { name: "Health" },
     { name: "Database" },
     { name: "Chat" },
+    { name: "Cases" },
   ],
   paths: {
+    "/api/cases/{id}": _detailPath("case"),
+    "/api/case-drafts/{id}": _detailPath("draft"),
+    "/api/cases": {
+      get: {
+        tags: ["Cases"], summary: "查詢登入使用者的申請草稿與案件",
+        description: "不接受 query 參數；依 session 讀取本人資料，依 updatedAt 新至舊排序，案件服務依 position 排序。未分頁，不包含身分證、聯絡資料或完整草稿。建立案件不代表已送出申請。",
+        security: [{ userSession: [] }],
+        responses: {
+          "200": { description: "查詢成功；無資料時回傳空陣列，Cache-Control: no-store", content: { "application/json": { schema: {
+            type: "object", required: ["drafts", "cases"], properties: {
+              drafts: { type: "array", items: { $ref: "#/components/schemas/CaseDraft" } },
+              cases: { type: "array", items: { $ref: "#/components/schemas/UserCase" } },
+            },
+          } } } },
+          "400": { description: "不接受查詢參數" },
+          "401": { description: "未登入或 session 已過期" },
+          "403": { description: "角色或 CORS 來源不允許" },
+          "503": { description: "無法驗證登入或讀取案件" },
+        },
+      },
+    },
     "/api/chat/history": {
       get: {
         tags: ["Chat"],
@@ -118,6 +159,39 @@ const _openApiDocument = {
       userSession: { type: "apiKey", in: "cookie", name: "care_user_session" },
     },
     schemas: {
+      CareOverview: {
+        type: "array", description: "僅單筆詳情提供；已保存的照顧描述，非醫療診斷。無關聯草稿時為空陣列，未記錄欄位 value 為 null。",
+        items: { type: "object", required: ["title", "items"], properties: {
+          title: { type: "string" }, items: { type: "array", items: { type: "object", required: ["label", "value"], properties: {
+            label: { type: "string" }, value: { type: ["string", "null"] },
+          } } },
+        } },
+      },
+      CaseDraft: {
+        type: "object", required: ["id", "status", "targetName", "jurisdiction", "summary", "missingFields", "updatedAt"],
+        properties: {
+          id: { type: "string", format: "uuid" }, status: { type: "string", const: "collecting" },
+          targetName: { type: ["string", "null"] }, jurisdiction: { type: ["string", "null"] },
+          summary: { type: ["string", "null"] }, missingFields: { type: "array", items: { type: "string" } },
+          updatedAt: { type: "string", format: "date-time" }, careOverview: { $ref: "#/components/schemas/CareOverview" },
+        },
+      },
+      UserCase: {
+        type: "object", required: ["id", "targetName", "summary", "createdAt", "updatedAt", "services"],
+        properties: {
+          careOverview: { $ref: "#/components/schemas/CareOverview" },
+          id: { type: "string", format: "uuid" }, targetName: { type: "string" }, summary: { type: "string" },
+          createdAt: { type: "string", format: "date-time" }, updatedAt: { type: "string", format: "date-time" },
+          services: { type: "array", items: {
+            type: "object", required: ["id", "position", "category", "name", "reason", "status"],
+            properties: {
+              id: { type: "string", format: "uuid" }, position: { type: "integer", minimum: 0, maximum: 7 },
+              category: { type: "string", enum: ["照顧及專業服務", "交通接送服務", "輔具及居家無障礙環境改善", "喘息服務"] },
+              name: { type: "string" }, reason: { type: "string" }, status: { type: "string", enum: ["尚未申請", "已送出"] },
+            },
+          } },
+        },
+      },
       ChatRequest: {
         type: "object",
         additionalProperties: false,

@@ -39,6 +39,18 @@ npm run dev:api
 
 啟動 API 後可開啟 Swagger UI：`http://localhost:3002/api/docs`；OpenAPI JSON 位於 `http://localhost:3002/api/openapi`。
 
+`GET /api/cases` 使用登入 cookie 查詢本人的案件，回傳 `{ drafts, cases }`，不接受 query 參數。`drafts` 包含收集中草稿的 `id`、`status`、`targetName`、`jurisdiction`、`summary`、`missingFields`、`updatedAt`；`cases` 包含案件的 `id`、`targetName`、`summary`、`createdAt`、`updatedAt` 與 `services`（`id`、`position`、`category`、`name`、`reason`、`status`）。兩者依更新時間新至舊排列，服務依 position 排序。未分頁、不快取，也不回傳完整草稿或身分證／聯絡資料欄位；無資料回傳空陣列。401 表示未登入，400 表示有不支援的 query，503 表示驗證或資料讀取失敗。「我的案件」畫面已串接此 API，進入頁面或按「更新案件」會重讀資料；支援載入、無資料、逾時、登入失效及錯誤重試。草稿可連回聊天補充資訊，但尚不支援指定草稿續辦、直接編輯或送出申請。
+
+### 案件詳情導覽
+
+詳情採申請準備報告版型，分成準備進度、照顧需求、服務原因或待補資訊、下一步提醒。單筆查詢新增 `item.careOverview`，由本人草稿或案件所連結的已完成草稿擷取照顧描述白名單，包含照顧情境、日常協助、照顧支持與環境；不輸出身分證、生日、地址、電話欄位。未記錄的值為 `null`，沒有關聯草稿時為空陣列，不推測診斷、等級、補助或服務效益。自由文字仍可能含使用者自行輸入的個資，Demo 應繼續使用虛構資料。
+
+- `/cases` 顯示可點擊的摘要卡；案件點入 `/cases/[id]`，收集中草稿點入 `/cases/drafts/[id]`。
+- `GET /api/cases/{id}` 回傳 `{ kind: "case", item }`，包含完整需求摘要與各服務的原因、狀態。
+- `GET /api/case-drafts/{id}` 回傳 `{ kind: "draft", item }`，包含目前摘要、服務縣市、缺漏資訊與更新時間，不回傳原始個資欄位。
+- 兩個端點都使用登入 cookie，以本人 ID 與資料 UUID 篩選。未登入 401、無效 ID／query 400、他人或不存在資料 404、讀取失敗 503，且不快取。
+- 草稿完成轉成案件後，原草稿詳情會顯示找不到資料，請返回列表查看新案件。草稿的聊天入口仍是一般 `/chat`，不會指定 Agent 續辦某筆草稿。
+
 ### Agent function tools
 
 目前只有申請資料收整 Agent 配置 function tool；一般問答 Agent 沒有 tools。
@@ -80,7 +92,7 @@ Schema 位於 `apps/api/src/services/db/schema.ts`，migration 位於 `drizzle/`
 
 - `/`：公開介紹首頁。
 - `/login`：身分證字號＋密碼登入／註冊；成功後導向 `/home`。
-- `/home`、`/chat`、`/cases`：需經 API 驗證登入狀態的桌面版型。聊天已串接真實 API、處理進度及最近 20 則歷史；案件仍為明確標示的待串接頁面。
+- `/home`、`/chat`、`/cases`：需經 API 驗證登入狀態的桌面版型。聊天已串接真實 API、處理進度及最近 20 則歷史；案件頁顯示收集中草稿、缺漏資訊、需求摘要及服務建議與狀態。
 - 使用者 API：`POST /api/user-auth/register`、`POST /api/user-auth/login`、`POST /api/user-auth/logout`、`GET /api/user-auth/session`。
 - 註冊／登入 body：`{ "nationalId": "...", "password": "..." }`，成功只回傳 `{ user: { id, role } }`；不回傳身分證字號或密碼雜湊。
 - 註冊固定建立 `user` 角色，專員登入流程不在本次範圍。

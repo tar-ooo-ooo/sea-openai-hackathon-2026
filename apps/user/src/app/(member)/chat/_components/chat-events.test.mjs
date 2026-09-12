@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readChatStream, readHistory } from "./chat-events.ts";
+import { readChatStream, readHistory, shouldSendOnEnter } from "./chat-events.ts";
+
+test("Enter 送出，但換行與中文輸入法選字不誤送", () => {
+  const event = { key: "Enter", shiftKey: false, metaKey: false, isComposing: false, keyCode: 13 };
+  assert.equal(shouldSendOnEnter(event), true);
+  for (const patch of [{ shiftKey: true }, { metaKey: true }, { isComposing: true }, { keyCode: 229 }, { key: "a" }]) {
+    assert.equal(shouldSendOnEnter({ ...event, ...patch }), false);
+  }
+});
 
 test("NDJSON 可處理中文字跨 chunk、進度與無結尾換行", async () => {
   const text = JSON.stringify({ type: "progress", progress: { id: "a", label: "整理中", status: "active" } }) + "\n"

@@ -1,4 +1,7 @@
 export type ChatMessage = { role: "user" | "assistant"; content: string };
+export function shouldSendOnEnter(event: Pick<KeyboardEvent, "key" | "shiftKey" | "metaKey" | "isComposing" | "keyCode">): boolean {
+  return event.key === "Enter" && !event.shiftKey && !event.metaKey && !event.isComposing && event.keyCode !== 229;
+}
 export type ChatProgress = { id: string; label: string; status: "active" | "complete" };
 type ChatEvent = { type: "progress"; progress: ChatProgress } | { type: "result"; result: { reply: string } };
 
